@@ -1,10 +1,12 @@
 // js/admin.js — Reporting Config Panel (Functional Areas + Delete Records)
+// N-530: Delivery Managers see three tabs only (Functional Areas, Delete Records, Checklists) — configPanelTabs() (permissions.js).
 let _adminTab = 'departments';
+const ADMIN_PANEL_TABS = ['departments', 'delete', 'snapshots', 'checklists', 'slaTargets', 'pdp', 'onboarding'];
 
 async function renderAdminPage() {
   const main = document.getElementById('main-content');
   const role = _resolvedRole; // N-281: resolved by app.js before any page renders; null = denied
-  if (role !== 'admin') {
+  if (!canUseConfigPanel(role)) {
     main.innerHTML = '<p>Access denied.</p>';
     return;
   }
@@ -13,9 +15,11 @@ async function renderAdminPage() {
 }
 
 async function renderAdminTab(tab) {
-  _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['departments', 'delete', 'snapshots', 'checklists', 'slaTargets', 'pdp', 'onboarding'];
+  const tabs = configPanelTabs(_resolvedRole, ADMIN_PANEL_TABS);
+  if (!tabs.length) { main.innerHTML = '<p>Access denied.</p>'; return; }
+  if (!tabs.includes(tab)) tab = tabs[0];   // N-530: a tab this role can't see falls back to its first
+  _adminTab = tab;
   const labels = { departments: 'Functional Areas', delete: 'Delete Records', snapshots: 'Snapshots', checklists: 'Checklists', slaTargets: 'SLA targets', pdp: 'PDP', onboarding: 'Onboarding' };
   const tooltips = {
     departments: 'Manage the list of functional areas used when categorising roles across the system.',
@@ -57,7 +61,10 @@ async function buildDepartmentsTab() {
       <td>${escHtml(d.DepartmentName)}</td>
       <td><div class="row-actions"><button class="btn-danger"${act('deleteAdminRecord', 'Departments', Number(d.id))}>Remove</button></div></td>
     </tr>`).join('');
+  const sharedNote = hasFullConfigPanel(_resolvedRole) ? ''
+    : '<p class="admin-tab-intro">Functional areas are shared by every project, so adding or removing one applies to everyone.</p>';
   return `
+    ${sharedNote}
     <table class="data-table" style="margin:0 0 24px">
       <thead><tr><th>Functional Area</th><th></th></tr></thead>
       <tbody>${rows || emptyStateRow({ colspan: 2, icon: 'layers', message: 'No functional areas defined yet.' })}</tbody>
@@ -85,6 +92,8 @@ async function submitDepartment() {
   const btn = document.getElementById('admin-submit-department');
   setButtonLoading(btn);
   try {
+    const gate = await checkConfigPanelCapability('configFunctionalAreas');   // N-530: fresh, fail-closed
+    if (!gate.ok) throw new Error(gate.reason);
     await createItem('Departments', { Title: name });
     await renderAdminTab('departments');
   } catch(e) {
@@ -103,9 +112,16 @@ const DELETE_LIST_CONFIG = {
 };
 
 async function buildDeleteTab() {
-  const listOptions = Object.entries(DELETE_LIST_CONFIG).map(([key, cfg]) =>
-    `<option value="${key}">${cfg.label}</option>`
+  // N-530: Admin gets every list; a Delivery Manager gets Roles, Weekly Activity, Placements and Rejected Offers.
+  const allowed = adminDeleteLists(_resolvedRole, Object.keys(DELETE_LIST_CONFIG));
+  const listOptions = allowed.map(key =>
+    `<option value="${key}">${DELETE_LIST_CONFIG[key].label}</option>`
   ).join('');
+  const dmNote = hasFullConfigPanel(_resolvedRole) ? ''
+    : `<p class="admin-tab-intro">
+      You can delete records on projects you can currently edit. Deleting a role does not delete its weekly
+      activity, placements or rejected offers, so delete those first if they should go too.
+    </p>`;
  
   return `
     <h3>Delete Records</h3>
@@ -113,6 +129,7 @@ async function buildDeleteTab() {
       Select a list, then choose the record to delete. This cannot be undone from the app —
       use SharePoint's recycle bin to recover deleted items.
     </p>
+    ${dmNote}
     <div class="form-container" style="padding:0;max-width:500px">
       <div class="form-group">
         <label>List *</label>
@@ -146,6 +163,17 @@ async function loadDeleteItems(listName) {
   select.innerHTML = '<option value="">Loading...</option>'; select.disabled = true;
   try {
     let options = [];
+    // N-530: a Delivery Manager is offered only records on projects they can write; Admin sees all.
+    // A record whose project cannot be resolved is not offered. A list outside the role's lists is refused.
+    if (!adminDeleteLists(_resolvedRole, [listName]).length) {
+      select.innerHTML = '<option value="">-- Not available --</option>';
+      return;
+    }
+    const full = hasFullConfigPanel(_resolvedRole);
+    const scopeIds = full ? null : await getUserWritableProjectIds(getCurrentUser().email);
+    const inScope = (rec, rolesById) => full ||
+      canDeleteAdminRecord(_resolvedRole, listName, adminDeleteRecordProjectId(listName, rec, rolesById), scopeIds);
+    const rolesByIdOf = rows => Object.fromEntries(rows.map(r => [String(r.id), r]));
 
     if (listName === 'Projects') {
       const items = await getItems('Projects');
@@ -157,6 +185,7 @@ async function loadDeleteItems(listName) {
       const [items, projects] = await Promise.all([getItems('Roles'), getItems('Projects')]);
       const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
       options = items
+        .filter(i => inScope(i))
         .sort((a, b) => {
           const pa = projMap[String(a.ProjectIDLookupId)] || '';
           const pb = projMap[String(b.ProjectIDLookupId)] || '';
@@ -176,7 +205,9 @@ async function loadDeleteItems(listName) {
       const [items, roles, projects] = await Promise.all([getItems('WeeklyActivity'), getItems('Roles'), getItems('Projects')]);
       const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
       const roleMap = Object.fromEntries(roles.map(r => [String(r.id), { title: r.RoleTitle, location: r.Location, projectId: String(r.ProjectIDLookupId) }]));
+      const rolesById = rolesByIdOf(roles);
       options = items
+        .filter(i => inScope(i, rolesById))
         .sort((a, b) => {
           const rid_a = String(a.RoleIDLookupId || a.RoleID || '');
           const rid_b = String(b.RoleIDLookupId || b.RoleID || '');
@@ -202,7 +233,9 @@ async function loadDeleteItems(listName) {
       const [items, roles, projects] = await Promise.all([getItems('Placements'), getItems('Roles'), getItems('Projects')]);
       const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
       const roleMap = Object.fromEntries(roles.map(r => [String(r.id), { title: r.RoleTitle, projectId: String(r.ProjectIDLookupId) }]));
+      const rolesById = rolesByIdOf(roles);
       options = items
+        .filter(i => inScope(i, rolesById))
         .sort((a, b) => new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0))
         .map(i => {
           const rid = String(i.RoleIDLookupId || i.RoleID || '');
@@ -216,7 +249,9 @@ async function loadDeleteItems(listName) {
       const [items, roles, projects] = await Promise.all([getItems('RejectedOffers'), getItems('Roles'), getItems('Projects')]);
       const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
       const roleMap = Object.fromEntries(roles.map(r => [String(r.id), { title: r.RoleTitle, projectId: String(r.ProjectIDLookupId) }]));
+      const rolesById = rolesByIdOf(roles);
       options = items
+        .filter(i => inScope(i, rolesById))
         .sort((a, b) => new Date(b.RejectionDate || 0) - new Date(a.RejectionDate || 0))
         .map(i => {
           const rid = String(i.RoleIDLookupId || i.RoleID || '');
@@ -249,6 +284,10 @@ async function confirmDelete() {
   const yesBtn = document.querySelector('#del-confirm .btn-primary');
   setButtonLoading(yesBtn, 'Deleting…');
   try {
+    // N-530: fresh, fail-closed check (Admin passes; a Delivery Manager needs the record's project to be one
+    // they can write). Nothing is deleted on a refusal.
+    const gate = await checkAdminDelete(list, id);
+    if (!gate.ok) throw new Error(gate.reason);
     // N-176: was a raw graphRequest('DELETE', ...), which bypassed
     // _cacheInvalidate() entirely and left the deleted row in the read
     // cache. deleteItem() is the identical DELETE plus invalidation.
@@ -269,7 +308,11 @@ function cancelDelete() {
 }
 
 async function deleteAdminRecord(listName, id) {
+  // N-530: this only ever removes a Functional Area. Fresh, fail-closed capability check first.
+  if (listName !== 'Departments') return;
   if (!(await confirmModal({ message: 'Remove this record?', confirmLabel: 'Remove', danger: true }))) return;
+  const gate = await checkConfigPanelCapability('configFunctionalAreas');
+  if (!gate.ok) { toast(gate.reason, { type: 'error' }); return; }
   // N-176: see confirmDelete() above — raw DELETE skipped cache invalidation.
   await deleteItem(listName, id);
   await renderAdminTab(_adminTab);

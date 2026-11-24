@@ -183,6 +183,87 @@ function canEditSlaTargets(role, kind, cfg = CONFIG) {
   return false;
 }
 
+// ── N-530: Config Panel for Delivery Managers (pure) ─────────────────
+// Page access is router.js (adminPanel: Admin + Delivery Manager). Inside the panel Admin keeps
+// every tab; a DM gets only the tabs their capability names. UI-level, like N-365 / N-398:
+// SharePoint cannot scope item rights per project, so checkAdminDelete (api-access.js) re-checks
+// every DM delete fresh and fails closed.
+
+// The lists a DM may delete from (Projects is Admin-only: the delete does not cascade, so it
+// would orphan Roles, Placements and Activity).
+const DM_DELETE_LISTS = Object.freeze(['Roles', 'WeeklyActivity', 'Placements', 'RejectedOffers']);
+// Config Panel tab → the capability that opens it for a non-Admin. A tab not listed here is Admin-only.
+const _CONFIG_TAB_CAPS = Object.freeze({ departments: 'configFunctionalAreas', delete: 'configDeleteRecords', checklists: 'configChecklistItems' });
+
+function canUseConfigPanel(role, cfg = CONFIG) {
+  return roleCan(role, 'configPanelAccess', cfg);
+}
+
+// Admin: the full panel (every Admin-only tab, switch-on, Onboarding, Projects delete). Not a
+// capability, so widening a capability list can never widen these.
+function hasFullConfigPanel(role, cfg = CONFIG) {
+  return canUseConfigPanel(role, cfg) && role === cfg.ROLE_IDS.ADMIN;
+}
+
+// The tabs `role` sees, in `allTabs` order. Unknown role / bad list → [].
+function configPanelTabs(role, allTabs, cfg = CONFIG) {
+  if (!Array.isArray(allTabs) || !canUseConfigPanel(role, cfg)) return [];
+  if (hasFullConfigPanel(role, cfg)) return allTabs.slice();
+  return allTabs.filter(t => Object.prototype.hasOwnProperty.call(_CONFIG_TAB_CAPS, t) && roleCan(role, _CONFIG_TAB_CAPS[t], cfg));
+}
+
+// The Delete Records lists `role` is offered, in `allLists` order.
+function adminDeleteLists(role, allLists, cfg = CONFIG) {
+  if (!Array.isArray(allLists) || !canUseConfigPanel(role, cfg)) return [];
+  if (hasFullConfigPanel(role, cfg)) return allLists.slice();
+  return roleCan(role, 'configDeleteRecords', cfg) ? allLists.filter(l => DM_DELETE_LISTS.includes(l)) : [];
+}
+
+// The checklist record types `role` may edit items of. Admin: all (Onboarding included). A DM:
+// Project and Role only (CONFIG.CHECKLISTS.SWITCH_TYPES), never the Onboarding track.
+function checklistEditTypes(role, cfg = CONFIG) {
+  const types = cfg && cfg.CHECKLISTS && cfg.CHECKLISTS.RECORD_TYPES;
+  const plain = cfg && cfg.CHECKLISTS && cfg.CHECKLISTS.SWITCH_TYPES;
+  if (!Array.isArray(types) || !Array.isArray(plain)) return [];
+  if (hasFullConfigPanel(role, cfg)) return types.slice();
+  return roleCan(role, 'configChecklistItems', cfg) ? plain.slice() : [];
+}
+
+// Switch a record type's checklists on / off (writes AppSettings): Admin only.
+function canSwitchChecklists(role, cfg = CONFIG) {
+  return hasFullConfigPanel(role, cfg);
+}
+
+// The project a Delete Records row belongs to, as a string id, or null when it cannot be
+// resolved. Roles carry it directly; WeeklyActivity / Placements / RejectedOffers reach it
+// through their role (`rolesById`: role rows keyed by String(id)). Unknown list → null.
+function adminDeleteRecordProjectId(listName, record, rolesById) {
+  if (!record || typeof record !== 'object') return null;
+  let pid = null;
+  if (listName === 'Roles') {
+    pid = record.ProjectIDLookupId ?? record.ProjectID;
+  } else if (listName === 'WeeklyActivity' || listName === 'Placements' || listName === 'RejectedOffers') {
+    const rid = record.RoleIDLookupId || record.RoleID;
+    const known = rid && rolesById && Object.prototype.hasOwnProperty.call(rolesById, String(rid));
+    const role = known ? rolesById[String(rid)] : null;
+    pid = role ? (role.ProjectIDLookupId ?? role.ProjectID) : null;
+  }
+  const n = Number(pid);
+  return Number.isInteger(n) && n > 0 ? String(n) : null;
+}
+
+// May `role` delete a `listName` record on `projectId`? Admin: any list, any record. A DM: one of
+// DM_DELETE_LISTS, on a project in `writableIds` (getUserWritableProjectIds). Fails closed: a bad
+// id, a missing / malformed list, or null (a DM never gets "every project") → false.
+function canDeleteAdminRecord(role, listName, projectId, writableIds, cfg = CONFIG) {
+  if (!canUseConfigPanel(role, cfg) || typeof listName !== 'string' || !listName) return false;
+  if (hasFullConfigPanel(role, cfg)) return true;
+  if (!roleCan(role, 'configDeleteRecords', cfg) || !DM_DELETE_LISTS.includes(listName)) return false;
+  const id = Number(projectId);
+  if (!Number.isInteger(id) || id <= 0) return false;
+  return Array.isArray(writableIds) && writableIds.includes(String(id));
+}
+
 // N-332: pure. Is `role` an Engagement survey respondent role
 // (CONFIG.SURVEY_RESPONDENT_ROLES)? Used for survey.html access and the home
 // survey widget. Missing / unknown role or config → false.

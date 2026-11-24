@@ -41,7 +41,9 @@ ASSERTIONS.push(
       const adm = _onbSrc('checklist-admin.js');
       // N-498: the picker and the type-select guard now take every record type (onboarding included); the switch cards and the
       // toggle guard stay on SWITCH_TYPES, so 'person' still never reaches the watermark switch.
-      _assertEqual((adm.match(/CHECKLISTS\.RECORD_TYPES/g) || []).length, 2, 'AC3 (N-498) picker + select guard take RECORD_TYPES');
+      // N-530: both now read _ckaEditTypes() (checklistEditTypes: Admin = every RECORD_TYPE, onboarding included).
+      _assertEqual((adm.match(/CHECKLISTS\.RECORD_TYPES/g) || []).length, 0, 'AC3 (N-530) no direct RECORD_TYPES left in the editor');
+      _assertEqual(/_ckaEditTypes\(\)\.map\(t =>/.test(adm) && /_ckaEditTypes\(\)\.includes\(type\)/.test(adm), true, 'AC3 (N-498 / N-530) picker + select guard take the role\'s edit types');
       _assertEqual((adm.match(/CHECKLISTS\.SWITCH_TYPES/g) || []).length, 2, 'AC3 (N-498) switch cards + toggle guard stay on SWITCH_TYPES');
       const api = _onbSrc('api-checklists.js');
       const set = api.slice(api.indexOf('async function setChecklistSettings'));

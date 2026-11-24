@@ -114,6 +114,10 @@ ASSERTIONS.push(
         onbPlan:               ['admin'],                                         // N-497
         pdpCalibrationUnlock:  ['admin'],                                         // N-443
         myDetailsAdmin:        ['admin', 'people_ops'],                           // N-456
+        configPanelAccess:     ['admin', 'delivery_manager'],                     // N-530
+        configFunctionalAreas: ['admin', 'delivery_manager'],                     // N-530
+        configDeleteRecords:   ['admin', 'delivery_manager'],                     // N-530
+        configChecklistItems:  ['admin', 'delivery_manager'],                     // N-530
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>
@@ -656,7 +660,7 @@ ASSERTIONS.push(
       placements: ['admin', 'delivery_manager', 'talent_partner'],
       rejections: ['admin', 'delivery_manager', 'leadership', 'talent_partner'],   // N-388
       hiringPlan: ['admin', 'delivery_manager', 'leadership', 'talent_partner'],
-      adminPanel: ['admin'],
+      adminPanel: ['admin', 'delivery_manager'],   // N-530
     },
     marketing: {
       placementAnalytics: ['admin', 'delivery_manager', 'talent_partner'],

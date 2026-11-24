@@ -105,7 +105,34 @@ async function getChecklistSettings() {
 // internal names (Title for the label). A create omits null/undefined
 // fields; an update sends null to clear a column (e.g. LinkUrl when an item
 // stops being a link).
+// N-530: a fresh, fail-closed gate in front of every template write (the Config Panel is open to
+// Delivery Managers, who edit Project / Role items only). getEffectiveRole is uncached and
+// ghost-aware. Admin passes with no extra read; a DM costs one item read on update / delete to
+// learn the item's RecordType. A failure throws, and the editor's existing catch shows it.
+async function _ckAssertCanEdit(recordType, id) {
+  try {
+    const role = await getEffectiveRole(getCurrentUser().email);
+    if (hasFullConfigPanel(role)) return;
+    let type = recordType;
+    if (id !== undefined) {
+      const row = await getItem('ChecklistTemplates', _ckInt(id));
+      const stored = row && row.RecordType;
+      if (recordType !== undefined && recordType !== null && recordType !== stored) {
+        throw new Error(CONFIG_PANEL_NOT_ALLOWED);   // a DM can't move an item between record types
+      }
+      type = stored;
+    }
+    if (checklistEditTypes(role).includes(type)) return;
+  } catch (e) {
+    if (e && e.message === CONFIG_PANEL_NOT_ALLOWED) throw e;
+    console.warn('N-530: checklist permission check failed', e);
+    throw new Error(CONFIG_PANEL_CHECK_FAILED);
+  }
+  throw new Error(CONFIG_PANEL_NOT_ALLOWED);
+}
+
 async function createChecklistItem(fields) {
+  await _ckAssertCanEdit((fields || {}).RecordType);
   const clean = {};
   Object.entries(fields || {}).forEach(([k, v]) => {
     if (v !== null && v !== undefined) clean[k] = v;
@@ -114,6 +141,7 @@ async function createChecklistItem(fields) {
 }
 
 async function updateChecklistItem(id, fields) {
+  await _ckAssertCanEdit((fields || {}).RecordType, id);
   return updateItem('ChecklistTemplates', _ckInt(id), fields);
 }
 
@@ -128,6 +156,7 @@ function refreshChecklistTemplates() {
 // deleteItem invalidates both cache tiers. ChecklistProgress is never
 // touched from here.
 async function deleteChecklistItem(id) {
+  await _ckAssertCanEdit(undefined, id);
   return deleteItem('ChecklistTemplates', _ckInt(id));
 }
 
@@ -153,6 +182,10 @@ async function setChecklistSettings(recordType, { enabled, fromId, onAt } = {}) 
   if (!CONFIG.CHECKLISTS.SWITCH_TYPES.includes(_ckRecordType(recordType))) {
     throw new Error('Onboarding uses its own switch (Config Panel → Onboarding).');
   }
+  // N-530: switch-on writes AppSettings and is Admin-only. Fresh, fail-closed, ghost-aware.
+  let switcher = false;
+  try { switcher = canSwitchChecklists(await getEffectiveRole(getCurrentUser().email)); } catch (e) { console.warn('N-530: switch permission check failed', e); }
+  if (!switcher) throw new Error(CONFIG_PANEL_NOT_ALLOWED);
   const prefix = _CK_SETTINGS_PREFIX[recordType];
   const fields = {};
   if (enabled !== undefined) fields[`${prefix}Enabled`] = enabled === true;

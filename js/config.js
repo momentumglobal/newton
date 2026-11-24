@@ -164,6 +164,15 @@ const CONFIG = {
     // N-456 (MM-6, MM-D5): read and edit ANY person's My Details (on-behalf edits, stamped), create their rows and run the
     // Manage panel. Leadership deliberately NOT listed: it sees employment fields only (N-457) and nobody else's personal details.
     myDetailsAdmin:        ['admin', 'people_ops'],
+    // N-530 (Chris, 24 Nov 2026): Config Panel for Delivery Managers. configPanelAccess = open the page (router.js,
+    // Command Bar). The three below name the only tabs a DM sees: Functional Areas (add / remove), Delete Records
+    // (Roles, Weekly Activity, Placements, Rejected Offers on projects they can write; never Projects) and Checklists
+    // (edit Project / Role items; switch-on and the Onboarding track stay Admin). Every other tab stays Admin-only
+    // through configPanelTabs() (permissions.js), deliberately not a capability.
+    configPanelAccess:     ['admin', 'delivery_manager'],
+    configFunctionalAreas: ['admin', 'delivery_manager'],
+    configDeleteRecords:   ['admin', 'delivery_manager'],
+    configChecklistItems:  ['admin', 'delivery_manager'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -1619,7 +1628,7 @@ const CONFIG = {
     { key: 'placements',       label: 'Placements',         module: 'reporting', href: 'reporting.html#placements',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
-    { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN] },
+    { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER] },
     // people-router.js — People (7)
     { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },

@@ -309,6 +309,52 @@ async function checkTemplateWrite(listName, id) {
   return isTemplateRow(item) ? checkTemplateManage() : { ok: true, reason: '' };
 }
 
+// ── N-530: Config Panel for Delivery Managers ────────────────────────
+// Fresh, fail-closed checks before a Config Panel write. Same { ok, reason } shape as
+// checkProjectWrite. getEffectiveRole is uncached and ghost-aware, so a revoked DM, or an
+// Admin ghosting a non-DM, is refused.
+const CONFIG_PANEL_CHECK_FAILED   = "Couldn't check your access — nothing changed.";
+const CONFIG_PANEL_NOT_ALLOWED    = "You can't do that in the Config Panel — nothing changed.";
+const ADMIN_DELETE_OUT_OF_SCOPE   = "You can only delete records on projects you can currently edit — nothing deleted.";
+
+// `cap` is a CONFIG.ROLE_CAPABILITIES key (configFunctionalAreas, configChecklistItems).
+async function checkConfigPanelCapability(cap) {
+  try {
+    const role = await getEffectiveRole(getCurrentUser().email);
+    return roleCan(role, cap) ? { ok: true, reason: '' } : { ok: false, reason: CONFIG_PANEL_NOT_ALLOWED };
+  } catch (e) {
+    console.warn('N-530: Config Panel permission check failed', e);
+    return { ok: false, reason: CONFIG_PANEL_CHECK_FAILED };
+  }
+}
+
+// Before a Delete Records delete. Admin passes untouched. A DM: the list must be one of theirs,
+// the record's project (read fresh, through its role for Activity / Placements / Rejections)
+// must be one they can write, and an unresolvable project refuses.
+async function checkAdminDelete(listName, id) {
+  try {
+    const email = getCurrentUser().email;
+    const role = await getEffectiveRole(email);
+    if (hasFullConfigPanel(role)) return { ok: true, reason: '' };
+    if (!adminDeleteLists(role, [listName]).length) return { ok: false, reason: CONFIG_PANEL_NOT_ALLOWED };
+    const record = await getItem(listName, id);
+    const rolesById = {};
+    const rid = record && (record.RoleIDLookupId || record.RoleID);
+    if (listName !== 'Roles' && rid) {
+      const r = await getItem('Roles', rid);
+      if (r) rolesById[String(rid)] = r;
+    }
+    const projectId = adminDeleteRecordProjectId(listName, record, rolesById);
+    const writable = await getUserWritableProjectIds(email);
+    return canDeleteAdminRecord(role, listName, projectId, writable)
+      ? { ok: true, reason: '' }
+      : { ok: false, reason: ADMIN_DELETE_OUT_OF_SCOPE };
+  } catch (e) {
+    console.warn('N-530: Config Panel delete check failed', e);
+    return { ok: false, reason: CONFIG_PANEL_CHECK_FAILED };
+  }
+}
+
 // Generic role-visibility resolver, despite the old name — used by both the
 // Market Report builder and the bulk weekly-activity grid (N-147, N-165).
 async function getScopedRolesVisibleTo(email, effectiveRole) {

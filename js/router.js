@@ -8,7 +8,7 @@ const PAGES = {
   placements:       { label: 'Placements',         roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
   rejections:       { label: 'Rejected Offers',    roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER, CONFIG.ROLE_IDS.LEADERSHIP] },
   hiringPlan:       { label: 'Hiring Plan',        roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER, CONFIG.ROLE_IDS.LEADERSHIP] },
-  adminPanel:       { label: 'Config Panel',       roles: [CONFIG.ROLE_IDS.ADMIN] },
+  adminPanel:       { label: 'Config Panel',       roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER] },   // N-530: DMs see three tabs only (configPanelTabs)
 };
 function canAccess(page, role) {
   return PAGES[page] && PAGES[page].roles.includes(role);

@@ -102,8 +102,19 @@ function _ckaDefaultVariant(type) {
 // Table width: Project / Role 5 columns, Onboarding 8.
 function _ckaCols() { return _ckType === CONFIG.ONBOARDING.RECORD_TYPE ? 8 : 5; }
 
+// N-530: the record types this user may edit (Admin all; a Delivery Manager Project and Role only).
+function _ckaEditTypes() {
+  return checklistEditTypes(_resolvedRole);
+}
+
 // ── Tab ──────────────────────────────────────────────────────────────
 async function buildChecklistsTab() {
+  if (!_ckaEditTypes().includes(_ckType)) {   // N-530: a stale Onboarding selection must not survive for a DM
+    _ckType = 'project';
+    _ckVariant = _ckaDefaultVariant(_ckType);
+    _ckaForm = null;
+    _ckaRename = null;
+  }
   let settingsAll, byType;
   try {
     const [settings, project, role, person] = await Promise.all([
@@ -146,10 +157,10 @@ async function buildChecklistsTab() {
   return `
     <div class="ck-admin">
       <h3>Checklists</h3>
-      <p class="admin-tab-intro">Build the workflow checklists shown on Projects and Roles, then switch each one on. Other users see content changes within 10 minutes, or straight away after <strong>Refresh data</strong>.</p>
+      ${canSwitchChecklists(_resolvedRole) ? `<p class="admin-tab-intro">Build the workflow checklists shown on Projects and Roles, then switch each one on. Other users see content changes within 10 minutes, or straight away after <strong>Refresh data</strong>.</p>
       <div class="ck-admin-switches">
         ${CONFIG.CHECKLISTS.SWITCH_TYPES.map(t => _ckaSwitchCardHtml(t, settingsAll[t], byType[t])).join('')}
-      </div>
+      </div>` : `<p class="admin-tab-intro">Edit the items on the Project and Role checklists. These checklists are shared by every project, so a change here applies to everyone. An Admin switches them on and off. Other users see changes within 10 minutes, or straight away after <strong>Refresh data</strong>.</p>`}
       ${_ckaPickerHtml()}
       ${_ckType === CONFIG.ONBOARDING.RECORD_TYPE ? `<p class="ck-admin-hint">${escHtml(CONFIG.ONBOARDING.EDITOR_TEXT.intro)}</p>` : ''}
       <p id="ck-admin-status" class="ck-admin-status" role="status" aria-live="polite"></p>
@@ -234,7 +245,7 @@ function _ckaSwitchCardHtml(type, s, rows) {
 }
 
 async function ckaToggleSwitch(recordType, turnOn) {
-  if (_ckaBusy || !CONFIG.CHECKLISTS.SWITCH_TYPES.includes(recordType)) return;   // N-496: never 'person'
+  if (_ckaBusy || !canSwitchChecklists(_resolvedRole) || !CONFIG.CHECKLISTS.SWITCH_TYPES.includes(recordType)) return;   // N-496: never 'person'; N-530: Admin only
   const t = _CKA_TEXT[recordType];
   let s, defaults;
   try {
@@ -280,7 +291,7 @@ async function ckaToggleSwitch(recordType, turnOn) {
 // ── Record type + variant picker ─────────────────────────────────────
 function _ckaPickerHtml() {
   // N-498: every record type, onboarding ('person') included. The switch cards above stay on SWITCH_TYPES.
-  const typeBtns = CONFIG.CHECKLISTS.RECORD_TYPES.map(t => `
+  const typeBtns = _ckaEditTypes().map(t => `
           <button type="button" class="btn-filter${_ckType === t ? ' active' : ''}" id="ck-type-${t}" aria-pressed="${_ckType === t}"
             ${act('ckaSelectType', t).trim()}>${_CKA_TEXT[t].list}</button>`).join('');
   const variantBtns = _ckaVariants().map((v, i) => {
@@ -308,7 +319,7 @@ function _ckaPickerHtml() {
 }
 
 function ckaSelectType(type) {
-  if (_ckaBusy || !CONFIG.CHECKLISTS.RECORD_TYPES.includes(type)) return;
+  if (_ckaBusy || !_ckaEditTypes().includes(type)) return;   // N-530: not a type this user may edit
   _ckType = type;
   _ckVariant = _ckaDefaultVariant(type);
   _ckaForm = null;

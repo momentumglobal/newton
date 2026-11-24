@@ -187,7 +187,7 @@
         _assertEqual(/async function _ppRun\(fn\)[\s\S]*?!v\.canEditTeam[\s\S]*?\n\}/.test(pp) && !/_ppRun\(fn\)[\s\S]{0,200}canEditSla/.test(pp), true, 'AC11 Team guard untouched by SLA');
         // Tab registration + Admin-only page gate.
         _assertEqual(/'slaTargets'/.test(adm) && adm.includes('buildSlaTargetsTab()'), true, 'AC8 tab registered in admin.js');
-        _assertEqual(/role !== 'admin'/.test(adm), true, 'AC8 Config Panel stays Admin-only');
+        _assertEqual(/!canUseConfigPanel\(role\)/.test(adm) && /configPanelTabs\(_resolvedRole, ADMIN_PANEL_TABS\)/.test(adm), true, 'AC8 Config Panel gate (N-530: Admin + Delivery Manager, the SLA targets tab stays Admin-only through configPanelTabs)');
         // The writer is api.js, only SLATargets, create/update/delete helpers only.
         const w = api.slice(api.indexOf('async function saveSlaTargets'), api.indexOf('async function saveSlaTargets') + 900);
         _assertEqual(/graphRequest/.test(w), false, 'AC7 no raw graphRequest writes');

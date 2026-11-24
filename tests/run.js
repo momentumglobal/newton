@@ -200,6 +200,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-md-guide.js'),     // N-401
   path.join(TESTS_DIR, 'assert-notifications.js'),   // N-425
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
+  path.join(TESTS_DIR, 'assert-config-panel.js'),    // N-530
   path.join(TESTS_DIR, 'assert-drift-duplicates.js'),   // N-478
   path.join(TESTS_DIR, 'assert-my-momentum.js'),     // N-451
   path.join(TESTS_DIR, 'assert-scorecard.js'),       // N-453

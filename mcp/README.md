@@ -51,6 +51,7 @@ Name a project, or a short time period, and Claude will pick the right tool. Exa
 - "What is our workforce split by location, contract type and level this month?"
 - "What is the Solutions Hub deployable team split by location and contract type?"
 - "Who joined Momentum in November?"
+- "How are our business goals going this year, and which actions are overdue?"
 
 The first question after Claude starts can take a few seconds while Newton loads. A whole-year utilisation question can take up to about 20 seconds. If a question is slow, ask for one project or fewer weeks.
 

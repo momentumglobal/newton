@@ -2,8 +2,8 @@
 // Loads on command-centre.html only, after bizgoals-data.js. Graph calls and role gates only; every rule is pure in
 // bizgoals-data.js. Lists (CONFIG.BIZGOALS.LISTS): BusinessGoals, BusinessActions, BusinessGoalUpdates. SharePoint locks all three
 // to Newton Admins (Edit) and Newton Leadership (Contribute without delete); a user outside both gets a 403, read here as no
-// rows (CONFIG.RESTRICTED_LISTS). Nothing is persistently cached or exposed to Newton for Claude / the Command Bar (N-535
-// decides the MCP side). Writes: capability bizgoalsEdit (Admin, Leadership), under Ghost Mode the ghosted role; the who stamp
+// rows (CONFIG.RESTRICTED_LISTS). Nothing is persistently cached or exposed to the Command Bar. N-535: the three getters
+// and getBizGoalOwnerCandidates are read-only inputs of the Newton for Claude tool business_goals (CONFIG.MCP.scripts). Writes: capability bizgoalsEdit (Admin, Leadership), under Ghost Mode the ghosted role; the who stamp
 // is the real signed-in user and never comes from the caller. Deletes: bizgoalsDelete (Admin only). An update entry can be added
 // but never edited or deleted on its own (BG-D13); it goes only with its goal.
 // N-533 (BG-2): the Command Centre page (bizgoals-track-ui.js) calls only the tracker functions at the bottom of this file

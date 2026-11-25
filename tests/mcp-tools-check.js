@@ -126,6 +126,7 @@ function makeGraph(lists, opts = {}) {
     if (!m) return { status: 404, body: { error: { message: 'fixture graph: unknown path ' + p } } };
     const list = m[1];
     asked.push(list);
+    if ((opts.deny || []).includes(list)) return { status: 403, body: { error: { message: 'fixture graph: forced 403 for ' + list } } };   // N-535
     if ((opts.fail || []).includes(list)) return { status: 500, body: { error: { message: 'fixture graph: forced failure for ' + list } } };
     const params = new URLSearchParams(q);
     if (m[2] && params.get('token')) return { status: 200, body: { value: [], '@odata.deltaLink': GRAPH + p + '?token=1' } };
@@ -172,6 +173,10 @@ async function run() {
   const { createServer, MCP_CONTRACT } = require(path.join(BOOT, 'server-core.js'));
   const FIX = loadFixtures();
   const { lists, today } = materialise(FIX.lists);
+  // N-535: 'Y' / 'Y-1' in the Goals & Actions fixtures are this / last calendar year.
+  const yr = new Date().getFullYear();
+  const subY = v => (typeof v === 'string' ? v.replace(/^Y-1/, String(yr - 1)).replace(/^Y/, String(yr)) : v);
+  lists.BusinessGoals.forEach(r => { r.GoalYear = Number(subY(r.GoalYear)); r.Period = subY(r.Period); });
   const outputs = [];   // every serialised tool result, for the AC 9 scan
 
   async function newLoader(opts) {
@@ -202,7 +207,7 @@ async function run() {
   const ids = rows => rows.map(r => r.roleId);
   const day = n => addDays(today, n);
 
-  await check('AC1 tools/list through the real server = newton_status + the thirteen tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
+  await check('AC1 tools/list through the real server = newton_status + the fourteen tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
     const lines = [];
     const gated = Object.assign({}, L, { call: (fn, ...a) => (fn === 'getEffectiveRole' ? Promise.resolve('leadership') : L.call(fn, ...a)) });
     const auth = { ensureToken: async () => 'tok', status: () => ({ storeMode: 'test', pendingSince: null }), takeLastError: () => null,
@@ -210,7 +215,7 @@ async function run() {
     const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
     const tl = lines.find(l => l.id === 1).result.tools;
-    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners'], 'tools/list');
+    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals'], 'tools/list');
     ok(tl.every(t => t.annotations && t.annotations.readOnlyHint === true), 'a tool without readOnlyHint');
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_projects', arguments: {} } }));
     const res = lines.find(l => l.id === 2).result;
@@ -236,6 +241,7 @@ async function run() {
       project_team: [{ project: 'Acme' }, ['Assignments', 'Projects', 'UserAssignments']], // N-394
       workforce_segmentation: [{}, ['People']],                                            // N-466
       joiners: [{}, ['People']],                                                           // N-467
+      business_goals: [{}, ['BusinessActions', 'BusinessGoalUpdates', 'BusinessGoals', 'LeadershipAccess', 'UserAssignments']],   // N-535
     };
     for (const name of Object.keys(expected)) {
       const fresh = await newLoader();
@@ -616,10 +622,87 @@ async function run() {
     await rejects(call('project_team', {}), /Give a project name or id/, 'project required');
   });
 
+  // ── N-535 business_goals ──────────────────────────────────────────────
+  const flatIds = gs => gs.reduce((a, g) => a.concat([g.id], flatIds(g.children || [])), []);
+
+  await check('N-535 business_goals default: this year, Open goals as an Annual > H2 > Quarterly tree; Dropped goal out, last year out, counts still whole-year; no emails', async () => {
+    const r = await call('business_goals', {});
+    eq([r.year, r.filters, r.total, r.truncated, r.degraded], [new Date().getFullYear(), { level: null, status: 'open' }, 4, false, []], 'header');
+    eq(r.goals.map(g => g.id), [1201, 1205], 'two open Annual roots (Dropped 1204 and last year 1206 out)');
+    const a = r.goals[0];
+    eq([a.title, a.level, a.status, a.owner, a.targetDate !== null, a.whyItMatters, a.successMeasures], ['Win three flagship clients', 'Annual', 'Open', { name: 'Lena Lead', state: 'ok' }, true, 'Growth worth 1.2m; candidate Jo Smith placed', 'Three signed by Q4'], 'free text returned in full, owner by name');
+    eq(a.children.map(g => [g.id, g.level]), [[1202, 'H2']], 'H2 nests under Annual');
+    eq(a.children[0].children.map(g => [g.id, g.level]), [[1203, 'Quarterly']], 'Quarterly nests under H2');
+    eq(r.counts, { open: 4, achieved: 0, dropped: 1, carriedForward: 0, red: 1, amber: 0, green: 0, goalsOverdue: 1, actionsOpen: 2, actionsOverdue: 1, actionsDueSoon: 1, actionsDone: 1 }, 'counts cover the whole year (the Dropped goal is counted)');
+    eq(r.goals[1].owner, null, 'no owner -> null');
+    eq(r.goals[1].whyItMatters, 'Ask ceo@client.example for intros', 'email-like text inside goal text is returned as written (the guard is key-based)');
+    eq(r.goals[1].rag, { own: null, rolled: null }, 'unrated -> null');
+  });
+
+  await check('N-535 business_goals rolled-up RAG is the worst of the goal and its open descendants (Green Annual + Red Quarterly = Red); the goal\'s own RAG is kept', async () => {
+    const r = await call('business_goals', {});
+    const a = r.goals[0], q = a.children[0].children[0];
+    eq([a.rag, a.children[0].rag, q.rag], [{ own: 'Green', rolled: 'Red' }, { own: 'Green', rolled: 'Red' }, { own: 'Red', rolled: 'Red' }], 'roll-up');
+  });
+
+  await check('N-535 business_goals latest update only (newest entry, YYYY-MM-DD, author name), updateCount = all entries, stale owner shown by stored name with state stale', async () => {
+    const q = (await call('business_goals', {})).goals[0].children[0].children[0];
+    eq(q.latestUpdate, { date: q.latestUpdate.date, authorName: 'Mo Member', text: 'Now red, contract at risk 90k', ragAtUpdate: 'Red', statusAtUpdate: 'Open' }, 'newest entry');
+    ok(/^\d{4}-\d{2}-\d{2}$/.test(q.latestUpdate.date), 'day, not an instant: ' + q.latestUpdate.date);
+    eq(q.updateCount, 2, 'both entries counted');
+    eq(q.owner, { name: 'Lee Lapsed', state: 'stale' }, 'lapsed owner');
+    eq(q.overdue, true, 'target date passed');
+    const none = (await call('business_goals', {})).goals[1];
+    eq([none.latestUpdate, none.updateCount], [null, 0], 'no entries');
+  });
+
+  await check('N-535 business_goals actions: open ones in full (title, owner name, due, overdue, dueSoon), done only as a count', async () => {
+    const q = (await call('business_goals', {})).goals[0].children[0].children[0];
+    eq(q.actions.open.map(x => [x.title, x.owner, x.overdue, x.dueSoon]), [['Send the proposal', { name: 'Lena Lead', state: 'ok' }, true, false], ['Book the board slot', { name: 'Lena Lead', state: 'ok' }, false, true]], 'open actions, soonest first');
+    ok(/^\d{4}-\d{2}-\d{2}$/.test(q.actions.open[0].due), 'due day');
+    eq([q.actions.doneCount, q.actions.overdueCount], [1, 1], 'done count, overdue count');
+    ok(!JSON.stringify(q.actions).includes('Draft the pitch'), 'a done action is not listed');
+  });
+
+  await check('N-535 business_goals status all lists Dropped goals; level gives a flat list without children; last year via year', async () => {
+    const all = await call('business_goals', { status: 'all' });
+    eq(all.goals.map(g => g.id), [1201, 1204, 1205], 'all statuses, this year, Annual roots');
+    eq(all.total, 5, 'five goals this year');
+    const q = await call('business_goals', { level: 'Quarterly' });
+    eq(q.goals.map(g => g.id), [1203], 'Quarterly only');
+    ok(!('children' in q.goals[0]), 'flat: no children');
+    eq(q.filters, { level: 'Quarterly', status: 'open' }, 'filters echoed');
+    const ly = await call('business_goals', { year: new Date().getFullYear() - 1, status: 'all' });
+    eq(ly.goals.map(g => g.id), [1206], 'last year');
+    eq(ly.goals[0].actions.open.map(x => x.title), ['Old action'], 'last year action');
+  });
+
+  await check('N-535 business_goals bad input gives a clear message: unknown level, unknown status, year out of range, non-integer year', async () => {
+    await rejects(call('business_goals', { level: 'Monthly' }), /level must be one of Annual, H2, Quarterly/, 'level');
+    await rejects(call('business_goals', { status: 'closed' }), /status must be open or all/, 'status');
+    await rejects(call('business_goals', { year: 2019 }), /year must be a whole number from 2020 to 2100/, 'year too early');
+    await rejects(call('business_goals', { year: 2026.5 }), /year must be a whole number/, 'non-integer');
+  });
+
+  await check('N-535 business_goals reads only its documented lists; no email key or sentinel in any result; a denied SharePoint read says so instead of returning empty', async () => {
+    const fresh = await newLoader();
+    await fresh.call('business_goals', {});
+    eq(Array.from(new Set(fresh.graph.asked)).sort(), ['BusinessActions', 'BusinessGoalUpdates', 'BusinessGoals', 'LeadershipAccess', 'UserAssignments'], 'read set');
+    const text = JSON.stringify(await fresh.call('business_goals', { status: 'all' }));
+    ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail', 'AuthorEmail', '@mg.co'].forEach(k => ok(!text.includes(k), 'leaked ' + k));
+    const denied = await newLoader({ deny: ['BusinessGoals'] });
+    const d = await denied.call('business_goals', {});
+    eq([d.denied, d.goals, /cannot read/.test(d.message)], [true, [], true], 'denied');
+    const soft = await newLoader({ fail: ['LeadershipAccess'] });
+    const s = await soft.call('business_goals', {});
+    eq(s.degraded, ['owner names'], 'degraded');
+    eq(s.goals[0].owner, { name: 'Lena Lead', state: 'stale' }, 'snapshot name when the directory read fails');
+  });
+
   // AC 9 + AC 10, over every result produced above (each handler ran in the DOM-less context).
   await check('AC9 / N-394 AC9 no tool output contains a sentinel (candidate name, salary, budget, hiring manager, notes, role-history value, ack note, bill rate) or a denied key', async () => {
     ok(outputs.length >= 25, 'too few tool calls captured to mean anything: ' + outputs.length);
-    eq(Array.from(new Set(outputs.map(o => o.name))).sort(), ['activity_summary', 'bench', 'joiners', 'list_placements', 'list_projects', 'list_roles', 'project_scorecards', 'project_summary', 'project_team', 'role_detail', 'time_to_fill', 'utilisation', 'workforce_segmentation'], 'every tool exercised');
+    eq(Array.from(new Set(outputs.map(o => o.name))).sort(), ['activity_summary', 'bench', 'joiners', 'list_placements', 'list_projects', 'list_roles', 'project_scorecards', 'project_summary', 'project_team', 'role_detail', 'time_to_fill', 'utilisation', 'workforce_segmentation'].concat(['business_goals']).sort(), 'every tool exercised');
     const denied = new Set();
     const cfg = L.config().MCP.outputDenyFields;
     Object.keys(cfg).forEach(k => cfg[k].forEach(f => denied.add(f)));

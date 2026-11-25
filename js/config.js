@@ -1813,12 +1813,14 @@ const CONFIG = {
       'js/actions.js', 'js/utils.js', 'js/templates-logic.js', 'js/project-types.js', 'js/people-logic.js', 'js/revenue-logic.js',
       'js/headcount.js', 'js/permissions.js',
       'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-access.js', 'js/api-people.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
+      'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js',   // N-535: business_goals - CONFIG.BIZGOALS; owner candidates; bizgoalsTrackerModel; the three getters
       'js/analytics.js', 'mcp/newton-tools.js',
     ],
     allowedLists: [
       'Projects', 'Roles', 'RoleHeadcount', 'RoleHistory', 'WeeklyActivity', 'Placements',
       'People', 'Assignments', 'SalesForecasts', 'UserAssignments', 'LeadershipAccess',
       'AnomalyAcks',   // N-393: activity_summary marks acknowledged funnel flags as Data Health does. Read only; Note never returned.
+      'BusinessGoals', 'BusinessActions', 'BusinessGoalUpdates',   // N-535: business_goals. Admin + Leadership lists; goal free text is returned by design (BG-D21), emails never.
     ],
     allowedRoles: ['admin', 'leadership'],
     gateTtlMs: 600000,   // 10 minutes
@@ -1833,6 +1835,9 @@ const CONFIG = {
       Assignments:    ['MonthlyBillRate', 'RetainerFee', 'PlacementFee', 'ProratedRevenue', 'BilledRevenue', 'UserEmail'],   // N-394: every money column, the computeMonthlyRows revenue columns, and staff emails (names only)
       SalesForecasts: ['ForecastedHeadcount'],   // N-394: read locally for the forecast %, never returned
       People:         ['WorkEmail', 'LevelSince'],   // N-433: staff work emails are never returned to Claude; N-437: nor the level-change date (an HR date behind PDP scoring)
+      BusinessGoals:       ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'],   // N-535: owners are shown by name; no emails or who-changed stamps
+      BusinessActions:     ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'],   // N-535
+      BusinessGoalUpdates: ['AuthorEmail'],                                    // N-535: the author is shown by name
     },
     windows: {
       summaryWeeks:      13,   // project_summary hires window (default)

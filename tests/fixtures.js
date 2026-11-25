@@ -426,7 +426,7 @@ var FIXTURES = {
   //   Outreach 12 - open). Company activity, last 4 weeks, client only: 3 weeks, Outreach 92.
   //   Scorecard customers: Acme Bank, Bluefin Labs (internal / LCI / expired excluded).
   mcp: {
-    sentinels: ['ZZQ-', '918273', '827364', '736455', '645546', '554433', '774411', '885522', 'zzq.member@mg.co', '4.4417'],   // N-394 adds RetainerFee, PlacementFee, a staff email, a SalesForecast headcount
+    sentinels: ['ZZQ-', '918273', '827364', '736455', '645546', '554433', '774411', '885522', 'zzq.member@mg.co', '4.4417', 'lena.lead@mg.co', 'lee.lapsed@mg.co'],   // N-394 adds RetainerFee, PlacementFee, a staff email, a SalesForecast headcount
     lists: {
       Projects: [
         { id: '101', Title: 'Acme Bank',         ProjectType: 'Embedded', Status: 'Active', DeliveryManager: 'dm.one@mg.co', CSDName: 'Casey Director', StartDate: { d: -300 }, EndDate: { d: 300 }, Notes: 'ZZQ-NOTE-P101' },
@@ -543,6 +543,30 @@ var FIXTURES = {
       SalesForecasts: [
         { id: '951', Title: 'Forecast A', ForecastStartDate: { d: 30 },  ForecastEndDate: { d: 120 }, ForecastedHeadcount: 4.4417 },
         { id: '952', Title: 'Forecast B', ForecastStartDate: { d: -400 }, ForecastEndDate: { d: -300 }, ForecastedHeadcount: 4.4417 },
+      ],
+      // N-535: Goals & Actions. Owners come from LeadershipAccess (Lena Lead, Lee Lapsed is NOT in it: a stale owner).
+      // 'Y' / 'Y-1' in GoalYear and Period are the current / previous calendar year (replaced when tests/mcp-tools-check.js loads them).
+      LeadershipAccess: [
+        { id: '1101', Title: 'lena.lead@mg.co', UserName: 'Lena Lead' },
+        { id: '1102', Title: 'zzq.member@mg.co', UserName: 'Mo Member' },
+      ],
+      BusinessGoals: [
+        { id: '1201', Title: 'Win three flagship clients', GoalYear: 'Y', GoalLevel: 'Annual', Period: 'Y', WhyItMatters: 'Growth worth 1.2m; candidate Jo Smith placed', SuccessMeasures: 'Three signed by Q4', TargetDate: { d: 60 }, Rag: 'Green', Status: 'Open', OwnerEmail: 'lena.lead@mg.co', OwnerName: 'Lena Lead', AddedByEmail: 'zzq.member@mg.co', ChangedByEmail: 'zzq.member@mg.co', Created: { d: -50 } },
+        { id: '1202', Title: 'Sign the first', GoalYear: 'Y', GoalLevel: 'H2', Period: 'Y-H2', ParentGoalID: 1201, Rag: 'Green', Status: 'Open', OwnerEmail: 'lena.lead@mg.co', OwnerName: 'Lena Lead', Created: { d: -49 } },
+        { id: '1203', Title: 'Close the pilot', GoalYear: 'Y', GoalLevel: 'Quarterly', Period: 'Y-Q4', ParentGoalID: 1202, TargetDate: { d: -5 }, Rag: 'Red', Status: 'Open', OwnerEmail: 'lee.lapsed@mg.co', OwnerName: 'Lee Lapsed', Created: { d: -48 } },
+        { id: '1204', Title: 'Drop the old plan', GoalYear: 'Y', GoalLevel: 'Annual', Period: 'Y', Rag: 'Amber', Status: 'Dropped', OwnerEmail: 'lena.lead@mg.co', OwnerName: 'Lena Lead', Created: { d: -47 } },
+        { id: '1205', Title: 'Hire a Head of Sales', GoalYear: 'Y', GoalLevel: 'Annual', Period: 'Y', Status: 'Open', OwnerEmail: '', OwnerName: '', WhyItMatters: 'Ask ceo@client.example for intros', Created: { d: -46 } },
+        { id: '1206', Title: 'Last year goal', GoalYear: 'Y-1', GoalLevel: 'Annual', Period: 'Y-1', Rag: 'Green', Status: 'Achieved', OwnerEmail: 'lena.lead@mg.co', OwnerName: 'Lena Lead', Created: { d: -400 } },
+      ],
+      BusinessActions: [
+        { id: '1301', Title: 'Send the proposal', GoalID: 1203, OwnerEmail: 'lena.lead@mg.co', OwnerName: 'Lena Lead', DueDate: { d: -3 }, IsDone: false, AddedByEmail: 'zzq.member@mg.co', ChangedByEmail: 'zzq.member@mg.co' },
+        { id: '1302', Title: 'Book the board slot', GoalID: 1203, OwnerEmail: 'lena.lead@mg.co', OwnerName: 'Lena Lead', DueDate: { d: 5 }, IsDone: false },
+        { id: '1303', Title: 'Draft the pitch', GoalID: 1203, OwnerEmail: 'lena.lead@mg.co', OwnerName: 'Lena Lead', DueDate: { d: -20 }, IsDone: true },
+        { id: '1304', Title: 'Old action', GoalID: 1206, DueDate: { d: -300 }, IsDone: false },
+      ],
+      BusinessGoalUpdates: [
+        { id: '1401', Title: 'u1', GoalID: 1203, UpdateText: 'Pilot slipped a week', RagAtUpdate: 'Amber', StatusAtUpdate: 'Open', AuthorEmail: 'zzq.member@mg.co', AuthorName: 'Mo Member', Created: { d: -10 } },
+        { id: '1402', Title: 'u2', GoalID: 1203, UpdateText: 'Now red, contract at risk 90k', RagAtUpdate: 'Red', StatusAtUpdate: 'Open', AuthorEmail: 'zzq.member@mg.co', AuthorName: 'Mo Member', Created: { d: -2 } },
       ],
       AnomalyAcks: [
         { id: '901', Title: 'funnel · 209', CheckType: 'funnel', SubjectKey: '209', Signature: 'Offers:2>Interview1:1', Note: 'ZZQ-ACKNOTE', AcknowledgedBy: 'dm.one@mg.co', AcknowledgedAt: '2026-10-01T09:00:00Z', Status: 'active' },

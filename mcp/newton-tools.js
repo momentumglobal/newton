@@ -1,5 +1,5 @@
 // mcp/newton-tools.js - Newton for Claude: live tool registry (N-392 registry; N-393 reporting tools;
-// N-394 People tools; N-466 workforce_segmentation).
+// N-394 People tools; N-466 workforce_segmentation; N-535 business_goals).
 //
 // Served from GitHub Pages and loaded LAST into the MCP server's vm context, after
 // js/config.js and every file in CONFIG.MCP.scripts (mcp/bootstrap/loader.js). No Newton
@@ -887,6 +887,139 @@ async function mcpJoiners(args) {
   });
 }
 
+// ── business_goals (N-535) ────────────────────────────────────────────
+// This year's business goals (Command Centre > Goals & Actions), read through the page's own view model
+// (bizgoalsTrackerModel, bizgoals-track.js), so RAG, roll-up, overdue and due-soon are the page's numbers; this
+// file only filters, picks and counts. BG-D21: goal text is returned as written (the no-money / no-candidate rule
+// is a rule on structured fields); owners and authors are names, never emails (outputDenyFields). BG-D22: the
+// latest update entry only. BG-D23: defaults are the current year, all levels, Open goals only.
+function mcpBizGoalLevel(v) {
+  if (v === undefined || v === null) return null;
+  if (!CONFIG.BIZGOALS.GOAL_LEVELS.includes(v)) throw new Error(`level must be one of ${CONFIG.BIZGOALS.GOAL_LEVELS.join(', ')}.`);
+  return v;
+}
+
+function mcpBizGoalStatus(v) {
+  if (v === undefined || v === null) return 'open';
+  if (v !== 'open' && v !== 'all') throw new Error('status must be open or all.');
+  return v;
+}
+
+function mcpBizGoalOwner(o) {
+  return o && o.state !== 'none' ? { name: o.name || null, state: o.state } : null;
+}
+
+function mcpBizGoalIsOpen(g) {
+  return (g.Status || CONFIG.BIZGOALS.GOAL_STATUS[0]) === CONFIG.BIZGOALS.GOAL_STATUS[0];
+}
+
+// One goal's actions from the model's decorated lists: open ones in full, done ones as a count.
+function mcpBizGoalActions(acts) {
+  return {
+    open: acts.open.map(x => ({
+      title: x.action.Title || null,
+      owner: mcpBizGoalOwner(x.owner),
+      due: mcpOutDay(x.action.DueDate),
+      overdue: x.overdue,
+      dueSoon: x.dueSoon,
+    })),
+    doneCount: acts.done.length,
+    overdueCount: acts.open.filter(x => x.overdue).length,
+  };
+}
+
+// A tracker-model node, picked field by field (never a spread of a live row).
+function mcpBizGoalPick(n, ctx) {
+  const g = n.goal, u = n.latest;
+  const out = {
+    id: mcpId(g.id),
+    title: g.Title || null,
+    level: g.GoalLevel || null,
+    period: g.Period || null,
+    status: g.Status || CONFIG.BIZGOALS.GOAL_STATUS[0],
+    owner: mcpBizGoalOwner(n.owner),
+    rag: { own: n.rag.own || null, rolled: n.rag.rolled || null },
+    targetDate: mcpOutDay(g.TargetDate),
+    overdue: n.overdue,
+    whyItMatters: g.WhyItMatters || null,
+    successMeasures: g.SuccessMeasures || null,
+    latestUpdate: u ? {
+      date: bizgoalsInstantDay(u.Created),
+      authorName: u.AuthorName || null,
+      text: u.UpdateText || null,
+      ragAtUpdate: u.RagAtUpdate || null,
+      statusAtUpdate: u.StatusAtUpdate || null,
+    } : null,
+    updateCount: n.historyCount,
+    carriedToYear: n.carriedTo,
+    actions: mcpBizGoalActions(ctx.acts.get(String(g.id)) || { open: [], done: [] }),
+  };
+  if (ctx.orphan) out.orphan = true;
+  return out;
+}
+
+// Depth-first walk of the model's nodes. Status 'open' hides a closed goal and its subtree. With a level filter the
+// matching goals go flat into ctx.flat (no children); otherwise they nest. ctx.total counts every goal that would be
+// listed; ctx.left is the row budget (CONFIG.MCP.maxRows).
+function mcpBizGoalWalk(nodes, ctx) {
+  const items = [];
+  nodes.forEach(n => {
+    if (!ctx.all && !mcpBizGoalIsOpen(n.goal)) return;
+    let item = null;
+    if (!ctx.level || n.goal.GoalLevel === ctx.level) {
+      ctx.total++;
+      if (ctx.left > 0) { ctx.left--; item = mcpBizGoalPick(n, ctx); }
+    }
+    if (item && ctx.level) ctx.flat.push(item);
+    const kids = mcpBizGoalWalk(n.children, ctx);
+    if (item && !ctx.level) { item.children = kids; items.push(item); }
+  });
+  return items;
+}
+
+// The model's year-wide counts, picked (canCarry is a page button, not a status).
+function mcpBizGoalCounts(c) {
+  return {
+    open: c.open, achieved: c.achieved, dropped: c.dropped, carriedForward: c.carried,
+    red: c.red, amber: c.amber, green: c.green, goalsOverdue: c.goalsOverdue,
+    actionsOpen: c.actionsOpen, actionsOverdue: c.actionsOverdue, actionsDueSoon: c.actionsDueSoon, actionsDone: c.actionsDone,
+  };
+}
+
+async function mcpBusinessGoals(args) {
+  const B = CONFIG.BIZGOALS, now = new Date();
+  const year = mcpInt(args.year, 'year', B.LIMITS.YEAR_MIN, B.LIMITS.YEAR_MAX, now.getFullYear());
+  const level = mcpBizGoalLevel(args.level);
+  const status = mcpBizGoalStatus(args.status);
+  const degraded = [];
+  const [goals, actions, updates, candidates] = await Promise.all([
+    getBusinessGoals(), getBusinessActions(), getBusinessGoalUpdates(),
+    mcpSoft(getBizGoalOwnerCandidates(), [], 'owner names', degraded),
+  ]);
+  if ([B.LISTS.GOALS, B.LISTS.ACTIONS, B.LISTS.UPDATES].some(wasListDenied)) {
+    return mcpOutputGuard({ denied: true, message: 'Your account cannot read the Goals & Actions lists in SharePoint.', year, goals: [] });
+  }
+  const model = bizgoalsTrackerModel({ goals, actions, updates, candidates, year, today: localDayISO(now) });
+  const acts = new Map();
+  const slot = id => { const k = String(id); if (!acts.has(k)) acts.set(k, { open: [], done: [] }); return acts.get(k); };
+  model.actionsOpen.forEach(x => slot(x.action.GoalID).open.push(x));
+  model.actionsDone.forEach(x => slot(x.action.GoalID).done.push(x));
+  const ctx = { all: status === 'all', level, acts, flat: [], total: 0, left: CONFIG.MCP.maxRows, orphan: false };
+  const tree = mcpBizGoalWalk(model.tree, ctx);
+  ctx.orphan = true;
+  const orphans = mcpBizGoalWalk(model.orphans, ctx);
+  return mcpOutputGuard({
+    scope: `Business goals (Goals & Actions in the Command Centre) for ${year}. Goal text is returned as written. Owners are shown by name; no emails. counts cover every goal in the year, whatever the filters.`,
+    year,
+    filters: { level, status },
+    counts: mcpBizGoalCounts(model.counts),
+    total: ctx.total,
+    truncated: ctx.total > CONFIG.MCP.maxRows,
+    degraded,
+    goals: level ? ctx.flat : tree.concat(orphans),
+  });
+}
+
 // ── Registry ──────────────────────────────────────────────────────────
 var MCP_TOOLS = [
   {
@@ -1059,5 +1192,19 @@ var MCP_TOOLS = [
       additionalProperties: false,
     },
     handler: mcpJoiners,
+  },
+  {
+    name: 'business_goals',
+    description: 'Leadership business goals (Goals & Actions): goal tree with rolled-up RAG, owner, latest update and open actions. Filter by year, level, status (default this year, Open goals). Names only; no emails.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        year: { type: 'integer', minimum: 2020, description: 'Goal year (default this year).' },
+        level: { type: 'string', enum: CONFIG.BIZGOALS.GOAL_LEVELS.slice(), description: 'Only goals at this level, as a flat list (default: the whole Annual > H2 > Quarterly tree).' },
+        status: { type: 'string', enum: ['open', 'all'], description: 'open (default) = Open goals only; all also lists Achieved, Dropped and Carried forward goals.' },
+      },
+      additionalProperties: false,
+    },
+    handler: mcpBusinessGoals,
   },
 ];

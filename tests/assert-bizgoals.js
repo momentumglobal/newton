@@ -40,7 +40,7 @@ ASSERTIONS.push(
         _assertEqual(isRestrictedList(l), true, 'AC4 isRestrictedList ' + l);
         _assertEqual(CONFIG.CACHE.persistentLists.includes(l), false, 'AC4 ' + l + ' not in persistentLists');
         _assertEqual(JSON.stringify(CONFIG.DELTA).includes(l), false, 'AC4 ' + l + ' not in DELTA');
-        _assertEqual(CONFIG.MCP.allowedLists.includes(l), false, 'AC4 ' + l + ' not in MCP.allowedLists (N-535 decides)');
+        _assertEqual(CONFIG.MCP.allowedLists.includes(l), true, 'AC4 ' + l + ' is in MCP.allowedLists (N-535: business_goals reads it)');
       });
       _assertEqual(CONFIG.ROLE_CAPABILITIES.bizgoalsEdit, ['admin', 'leadership'], 'AC4 bizgoalsEdit');
       _assertEqual(CONFIG.ROLE_CAPABILITIES.bizgoalsDelete, ['admin'], 'AC4 bizgoalsDelete Admin only (BG-D11)');

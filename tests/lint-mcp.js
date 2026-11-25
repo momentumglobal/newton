@@ -49,6 +49,10 @@ var MCP_GETTER_LISTS = {
   getPeople:                  ['People'],            // N-394
   getSalesForecasts:          ['SalesForecasts'],    // N-394
   getCurrentAssignmentsByEmployee: ['Assignments'],  // N-394
+  getBusinessGoals:           ['BusinessGoals'],         // N-535
+  getBusinessActions:         ['BusinessActions'],       // N-535
+  getBusinessGoalUpdates:     ['BusinessGoalUpdates'],   // N-535
+  getBizGoalOwnerCandidates:  ['UserAssignments', 'LeadershipAccess'],   // N-535
 };
 
 // The tools that build a company-wide aggregate must call excludeInternalProjectData (N-333);

@@ -8,6 +8,7 @@ var MCP_N393_TOOL_NAMES = ['list_projects', 'project_summary', 'list_roles', 'ro
 var MCP_N394_TOOL_NAMES = ['bench', 'utilisation', 'project_team'];
 var MCP_N466_TOOL_NAMES = ['workforce_segmentation'];
 var MCP_N467_TOOL_NAMES = ['joiners'];
+var MCP_N535_TOOL_NAMES = ['business_goals'];
 
 function _mcpThrows(fn, re, label) {
   try { fn(); } catch (e) {
@@ -21,7 +22,7 @@ ASSERTIONS.push(
   {
     name: 'N-393 AC1 / N-394 AC1 MCP_TOOLS: the eight reporting tools then bench, utilisation, project_team; named handlers declared once, closed schemas, enums from CONFIG',
     fn: function () {
-      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES, MCP_N466_TOOL_NAMES, MCP_N467_TOOL_NAMES), 'tool names and order');
+      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES, MCP_N466_TOOL_NAMES, MCP_N467_TOOL_NAMES, MCP_N535_TOOL_NAMES), 'tool names and order');
       MCP_TOOLS.forEach(t => {
         if (!/^[a-z][a-z0-9_]{0,63}$/.test(t.name) || t.name === 'newton_status') throw new Error(`bad tool name ${t.name}`);
         if (typeof t.handler !== 'function' || !/^mcp[A-Z]\w+$/.test(t.handler.name)) throw new Error(`${t.name}: handler must be a named mcp<Name> function`);
@@ -149,6 +150,45 @@ ASSERTIONS.push(
       try {
         _assertEqual(rules(''), ['getter'], 'registry naming a non-allowlisted list');
       } finally { MCP_GETTER_LISTS.getAnomalyAcks = saved; }
+    },
+  },
+  {
+    name: 'N-535 schema: business_goals takes year (integer, min 2020), level (Annual / H2 / Quarterly) and status (open / all), nothing required; description says names only, no emails',
+    fn: function () {
+      const t = MCP_TOOLS.find(x => x.name === 'business_goals');
+      if (!t) throw new Error('business_goals is not registered');
+      if (MCP_N535_TOOL_NAMES.indexOf(t.name) === -1) throw new Error('name list out of step');
+      const p = t.inputSchema.properties;
+      _assertEqual(Object.keys(p), ['year', 'level', 'status'], 'inputs');
+      _assertEqual([p.year.type, p.year.minimum], ['integer', 2020], 'year');
+      _assertEqual(p.level.enum, CONFIG.BIZGOALS.GOAL_LEVELS, 'level enum from CONFIG.BIZGOALS');
+      _assertEqual(p.status.enum, ['open', 'all'], 'status enum');
+      _assertEqual(t.inputSchema.required || [], [], 'nothing required');
+      _assertEqual(t.inputSchema.additionalProperties, false, 'closed schema');
+      if (!/names only/i.test(t.description) || !/no emails/i.test(t.description)) throw new Error('description must say names only, no emails');
+      if (t.description.length > 300) throw new Error('description over 300 chars: ' + t.description.length);
+    },
+  },
+  {
+    name: 'N-535 CONFIG.MCP: the four bizgoals scripts load in dependency order after api-orgchart.js and before analytics.js; the three lists are allowed; the five email keys are denied; PeoplePay still never allowed; contract unchanged',
+    fn: function () {
+      const m = CONFIG.MCP, sc = m.scripts;
+      const order = ['js/api-orgchart.js', 'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js', 'js/analytics.js'].map(f => sc.indexOf(f));
+      if (order.indexOf(-1) !== -1) throw new Error('a bizgoals script is missing from CONFIG.MCP.scripts');
+      for (let i = 1; i < order.length; i++) if (order[i] < order[i - 1]) throw new Error('bizgoals scripts out of dependency order');
+      _assertEqual(sc[sc.length - 1], 'mcp/newton-tools.js', 'tools load last');
+      ['BusinessGoals', 'BusinessActions', 'BusinessGoalUpdates'].forEach(l => { if (!m.allowedLists.includes(l)) throw new Error(l + ' not in allowedLists'); });
+      if (m.allowedLists.includes('PeoplePay')) throw new Error('PeoplePay must never be allowed');
+      _assertEqual([m.outputDenyFields.BusinessGoals, m.outputDenyFields.BusinessActions, m.outputDenyFields.BusinessGoalUpdates],
+        [['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'], ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'], ['AuthorEmail']], 'email keys denied');
+      _assertEqual(m.contract, 1, 'contract unchanged');
+      ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail', 'AuthorEmail'].forEach(k => {
+        const bad = { goals: [{ x: {} }] };
+        bad.goals[0].x[k] = 'a@b.co';
+        let threw = false;
+        try { mcpOutputGuard(bad); } catch (e) { threw = new RegExp('withheld a restricted field \\(' + k + '\\)').test(e.message); }
+        if (!threw) throw new Error('mcpOutputGuard must reject a nested ' + k);
+      });
     },
   },
   {

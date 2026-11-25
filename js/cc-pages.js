@@ -3,7 +3,7 @@
 // ── Main renderer ──────────────────────────────────────────────────
 async function renderCCOverview(container) {
   container.innerHTML = dashboardSkeleton(4);
-  const [allRoles, allActs13, forecasts, assigns, people, allProjects, snapshots, allStageRows, allHeadcount, placementIds] = await Promise.all([
+  const [allRoles, allActs13, forecasts, assigns, people, allProjects, snapshots, allStageRows, allHeadcount, placementIds, bizGoals, bizActions] = await Promise.all([
     getAllRoles(),
     getActivityForAnalytics(13),
     getItems('SalesForecasts'),
@@ -14,11 +14,15 @@ async function renderCCOverview(container) {
     getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
     getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
     getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
+    // N-534: null = the read failed (the tile says so); a denied list reads as [] and wasListDenied() tells them apart.
+    getBusinessGoals().catch(e => { console.warn('N-534: goals read failed', e); return null; }),
+    getBusinessActions().catch(e => { console.warn('N-534: actions read failed', e); return null; }),
   ]);
   // N-274: time-in-stage flag. Health reads 13 weeks of activity —
   // isRoleFlagged windows its conversion rule to ROLE_FLAG.conversion itself.
   // N-285: read straight after the Promise.all — see wasListDenied().
   const forecastsDenied = wasListDenied('SalesForecasts');
+  const goalsTile = ccGoalsTileHTML(bizGoals, bizActions);   // N-534: reads wasListDenied() here too
   // N-333: every tile and the Project Health detail are client-only — the
   // internal project is filtered out once, here. Revenue / Utilisation read
   // forecasts + assignments + people, which are untouched.
@@ -50,6 +54,7 @@ async function renderCCOverview(container) {
       ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts13, stageHistory, openSince), healthTrendHTML)}
       ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, stageHistory))}
       ${ccTileHTML('util',   'Utilisation',    ragUtil,   forecastsDenied ? CONFIG.CC_FORECAST_DENIED_TEXT : ccUtilStats(forecasts, assigns, people))}
+      ${goalsTile}
     </div>`;
 
   const grid = document.getElementById('cc-grid');
@@ -75,7 +80,7 @@ function ccTileHTML(id, title, rag, statsHTML, trendHTML = '') {
 
 // ── Expand / collapse ──────────────────────────────────────────────
 function attachTileExpand(grid) {
-  grid.querySelectorAll('.cc-tile').forEach(tile => {
+  grid.querySelectorAll('.cc-tile:not(.cc-tile--link)').forEach(tile => {   // N-534: the Goals tile is a link, it never expands
     tile.addEventListener('click', e => {
       if (e.target.classList.contains('cc-close')) return;
       if (grid.classList.contains('cc-grid--expanded')) return;
@@ -112,6 +117,35 @@ function loadTileDetail(tile, data) {
   if (id === 'util')    el.innerHTML = renderUtilDetail(data);
   if (id === 'revenue') el.innerHTML = renderRevenueDetail(data);
   if (window.lucide) lucide.createIcons();   // N-417: the empty-state icons
+}
+
+// ── Goals & Actions tile (N-534) ───────────────────────────────────
+// A link to the Goals & Actions page (#goals is routed by handleCCDeepLink), not an expandable tile: no close button, and
+// the empty detail div (hidden by CSS) only keeps collapseTile() safe. goals / actions = rows, or null when the read failed.
+function ccGoalsTileHTML(goals, actions) {
+  const L = CONFIG.BIZGOALS.LISTS;
+  const denied = wasListDenied(L.GOALS) || wasListDenied(L.ACTIONS);
+  const t = goals && actions && !denied ? bizgoalsOverviewTile({ goals, actions, today: new Date() }) : null;
+  const rag = t ? t.rag : 'grey';
+  const marker = ragMarkerHTML(rag, { label: true });   // N-254: red / amber get the glyph + label
+  const statusHTML = marker ? `<div class="cc-tile__status">${marker}</div>` : '';
+  return `
+    <a class="cc-tile cc-tile--${rag} cc-tile--link" data-tile="goals" href="#goals">
+      ${statusHTML}
+      <div class="cc-tile__title">Goals &amp; Actions</div>
+      <div class="cc-tile__stats">${ccGoalsTileText(t, denied)}</div>
+      <div class="cc-tile__detail"></div>
+    </a>`;
+}
+
+function ccGoalsTileText(t, denied) {
+  if (denied) return 'No access to Goals &amp; Actions data';
+  if (!t) return 'Goals &amp; Actions unavailable';
+  const goalsLine = t.open
+    ? `${t.red} Red · ${t.amber} Amber · ${t.green} Green${t.unrated ? ` · ${t.unrated} unrated` : ''}`
+    : `No open goals for ${t.year}`;
+  const n = t.actionsOverdue;
+  return `${goalsLine}<br>${n ? `${n} overdue action${n === 1 ? '' : 's'}` : 'No overdue actions'}`;
 }
 
 // ── Headline stats (at-a-glance tile summary) ──────────────────────

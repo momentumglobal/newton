@@ -208,4 +208,50 @@ ASSERTIONS.push(
       _assertEqual(CONFIG.COMMAND_BAR_PAGES.filter(p => p.module === 'command').map(p => p.key), ['overview', 'goals', 'claudeMcp'], 'AC1 Command Bar order');
     },
   },
+  {
+    name: 'N-534 AC1-AC5 Overview tile: current-year open Annual goals by rolled RAG, overdue actions across years, grey when empty',
+    fn: function () {
+      const fx = _bgtrFx();
+      const t = bizgoalsOverviewTile({ goals: fx.goals, actions: fx.actions, today: '2026-06-01' });
+      _assertEqual([t.year, t.red, t.amber, t.green, t.unrated, t.open, t.rag], [2026, 1, 0, 0, 0, 1, 'red'], 'AC2 AC3 Annual 1 rolls up Red from its H2; Dropped 4, orphan 5 and the 2025 goal 9 are not counted');
+      _assertEqual(t.actionsOverdue, 1, 'AC5 open action 11 is past due; 12 is due 10 Jun, and done 13 and 14 are not');
+      const goals = fx.goals.concat([
+        { id: '30', Title: 'Green one', GoalYear: 2026, GoalLevel: 'Annual', Period: '2026', Status: 'Open', Rag: 'Green' },
+        { id: '31', Title: 'No rag', GoalYear: 2026, GoalLevel: 'Annual', Period: '2026', Status: 'Open' },
+        { id: '32', Title: 'Last year, still open', GoalYear: 2025, GoalLevel: 'Annual', Period: '2025', Status: 'Open', Rag: 'Red' },
+      ]);
+      const actions = fx.actions.concat([
+        { id: '41', Title: 'Late, last year', GoalID: 32, DueDate: '2025-11-01T12:00:00Z', IsDone: false },
+        { id: '42', Title: 'On a carried goal', GoalID: 9, DueDate: '2025-05-01T12:00:00Z', IsDone: false },
+        { id: '43', Title: 'Due today', GoalID: 30, DueDate: '2026-06-01T12:00:00Z', IsDone: false },
+        { id: '44', Title: 'No date', GoalID: 30, IsDone: false },
+        { id: '45', Title: 'Goal gone', GoalID: 99, DueDate: '2026-01-01T12:00:00Z', IsDone: false },
+      ]);
+      const t2 = bizgoalsOverviewTile({ goals, actions, today: '2026-06-01' });
+      _assertEqual([t2.red, t2.green, t2.unrated, t2.open], [1, 1, 1, 3], 'AC2 AC4 rolled RAG counts, unrated tracked, 2025 goal 32 not counted');
+      _assertEqual(t2.actionsOverdue, 2, 'AC5 11 plus 41 (late, last year, goal still open); carried 42, due-today 43, undated 44, goal-less 45 excluded');
+      _assertEqual(bizgoalsOverviewTile({ today: '2026-06-01' }), { year: 2026, rag: 'grey', red: 0, amber: 0, green: 0, unrated: 0, open: 0, actionsOverdue: 0 }, 'AC1 AC4 null-safe, grey when empty');
+      const one = r => bizgoalsOverviewTile({ goals: [{ id: '1', GoalYear: 2026, GoalLevel: 'Annual', Status: 'Open', Rag: r }], today: '2026-06-01' }).rag;
+      _assertEqual([one('Amber'), one('Green'), one('')], ['amber', 'green', 'grey'], 'AC4 tile colour = worst rolled RAG, grey when unrated');
+    },
+  },
+  {
+    name: 'N-534 AC6-AC11 tile sources: link tile with messages, never expands, reads goals / actions directly, no PDP, no hex',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js.');
+      const cc = ALL_SOURCES['cc-pages.js'];
+      const tile = _bgtBody('cc-pages.js', 'function ccGoalsTileHTML(');
+      _assertEqual(/class="cc-tile cc-tile--\$\{rag\} cc-tile--link"/.test(tile) && tile.includes('href="#goals"') && tile.includes('data-tile="goals"'), true, 'AC6 AC7 a link tile to #goals');
+      _assertEqual(tile.includes('cc-close'), false, 'AC10 no close button');
+      _assertEqual(_bgtBody('cc-pages.js', 'function attachTileExpand(').includes(".cc-tile:not(.cc-tile--link)"), true, 'AC7 link tile is outside the expand handler');
+      const text = _bgtBody('cc-pages.js', 'function ccGoalsTileText(');
+      _assertEqual(['No access to Goals', 'Goals &amp; Actions unavailable', 'No overdue actions', 'overdue action${n === 1'].every(s => text.includes(s)), true, 'AC6 AC8 messages');
+      const over = _bgtBody('cc-pages.js', 'async function renderCCOverview(');
+      _assertEqual(over.includes('getBusinessGoals().catch(') && over.includes('getBusinessActions().catch(') && over.includes('ccGoalsTileHTML(bizGoals, bizActions)'), true, 'AC8 reads fail soft; tile built beside the denied check');
+      _assertEqual(cc.includes('getBusinessGoalsData'), false, 'AC11 no owner-candidate read from the Overview');
+      _assertEqual(/CONFIG\.PDP\b|\bpdp[A-Z]\w*\(/.test((tile + text).replace(/\/\/.*$/gm, '')), false, 'AC11 no PDP code');
+      _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(tile + text), false, 'AC11 no hex literal in the tile');
+      _assertEqual(/bizgoalsOverviewTile/.test(_bgtSrc('bizgoals-track.js')) && !/\b(getItems|getItem)\(/.test(_bgtBody('bizgoals-track.js', 'function bizgoalsOverviewTile(')), true, 'AC1 pure');
+    },
+  },
 );

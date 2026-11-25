@@ -371,3 +371,27 @@ function bizgoalsRolloverPlan(input) {
   });
   return { toYear, items, skipped };
 }
+
+// N-534 (BG-3, BG-D18 to BG-D20): the Command Centre Overview tile. This calendar year's open Annual goals counted by their
+// rolled-up RAG (the page's own roll-up, via bizgoalsTrackerModel), and open actions past their due date across every year
+// (an action on a Carried forward goal, or on a goal that no longer exists, is not counted). rag = the tile colour: worst RAG
+// of the open Annual goals, grey when none is rated. input = { goals, actions, today } (today = Date or 'YYYY-MM-DD').
+// -> { year, rag, red, amber, green, unrated, open, actionsOverdue }
+function bizgoalsOverviewTile(input) {
+  const i = input || {}, B = CONFIG.BIZGOALS;
+  const goals = i.goals || [], actions = i.actions || [];
+  const day = typeof i.today === 'string' ? i.today : localDayISO(i.today || new Date());
+  const year = Number(String(day).slice(0, 4));
+  const model = bizgoalsTrackerModel({ goals, actions: [], updates: [], candidates: [], year, today: day });
+  const top = model.tree.filter(n => _bgtrOpen(n.goal));
+  const by = r => top.filter(n => n.rag.rolled === r).length;
+  const red = by(B.RAG[0]), amber = by(B.RAG[1]), green = by(B.RAG[2]);
+  const byId = new Map(goals.map(g => [_bgtrId(g.id), g]));
+  const actionsOverdue = actions.filter(a => {
+    const g = byId.get(_bgtrId(a.GoalID)), due = _bgtrDay(a.DueDate);
+    const done = a.IsDone === true || a.IsDone === 'Yes' || a.IsDone === 1;
+    return !!g && _bgtrStatus(g) !== B.CARRIED && !done && !!due && due < day;
+  }).length;
+  const rag = red ? 'red' : amber ? 'amber' : green ? 'green' : 'grey';
+  return { year, rag, red, amber, green, unrated: top.length - red - amber - green, open: top.length, actionsOverdue };
+}

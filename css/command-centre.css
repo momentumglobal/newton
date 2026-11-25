@@ -25,6 +25,10 @@
 
 .cc-tile:hover { transform: translateY(-2px); }
 @media (prefers-reduced-motion: reduce) { .cc-tile:hover { transform: none; } }
+/* N-534: the Goals & Actions tile is a link (cc-pages.js ccGoalsTileHTML), not an expandable tile. */
+.cc-tile--link { text-decoration: none; color: inherit; }
+.cc-tile--link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.cc-tile--link .cc-tile__detail { display: none; }
 
 /* Tile expand */
 .cc-grid--expanded .cc-tile { flex: 0 0 0; opacity: 0; padding: 0; pointer-events: none; }

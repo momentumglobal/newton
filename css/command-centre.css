@@ -107,3 +107,42 @@
 .cc-guide .data-table { width: 100%; margin: var(--sp-7) 0; }
 .cc-guide .data-table td { vertical-align: top; }
 .cc-guide-error { color: var(--text-secondary); }
+
+/* N-533 (BG-2): Goals & Actions page (bizgoals-track-ui.js). Copies the My Development tracker look (people.css
+   .pdptr-* / .pdpt-* / .pdpm-* / .ppl-card*, not loaded on this shell) under its own .bgtr-* names. Tokens only;
+   badges reuse .dh-badge-* (style.css). */
+.bgtr-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-bottom: var(--sp-7); }
+.bgtr-year { display: inline-flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-13); color: var(--text-secondary); }
+.bgtr-head .bgtr-btns { margin: 0 0 0 auto; }
+.bgtr-chips { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.bgtr-btns { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-7); }
+.bgtr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-8); margin-top: var(--sp-7); }
+@media screen { .bgtr-card { box-shadow: var(--elev-card); } }
+.bgtr-card-title { font-size: var(--fs-13); font-weight: var(--fw-bold); color: var(--brand-tertiary); margin-bottom: var(--sp-4); }
+.bgtr-muted { font-size: var(--fs-12); color: var(--text-muted); }
+.bgtr-note { font-size: var(--fs-13); color: var(--text-muted); }
+.bgtr-label { font-size: var(--fs-13); font-weight: var(--fw-bold); color: var(--text-primary); margin-bottom: var(--sp-2); }
+.bgtr-text { white-space: pre-wrap; font-size: var(--fs-13); color: var(--text-primary); }
+.bgtr-tree { list-style: none; margin: var(--sp-3) 0 0 var(--sp-8); padding: 0; border-left: 2px solid var(--border-faint); }
+.bgtr-root-list { margin-left: 0; border-left: 0; }
+.bgtr-node { padding: var(--sp-4) 0 var(--sp-4) var(--sp-6); }
+.bgtr-goal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); }
+.bgtr-title { font-size: var(--fs-13); color: var(--text-primary); }
+.bgtr-owner { font-size: var(--fs-12); color: var(--text-secondary); }
+.bgtr-controls { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); margin-left: auto; }
+.bgtr-meta { margin-top: var(--sp-2); }
+.bgtr-latest { margin-top: var(--sp-3); font-size: var(--fs-13); color: var(--text-primary); }
+.bgtr-sub { margin-top: var(--sp-6); }
+.bgtr-history { list-style: none; margin: var(--sp-4) 0 0; padding: var(--sp-4) var(--sp-5); border: 1px solid var(--border-faint); border-radius: var(--r-lg); }
+.bgtr-history-row { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border-faint); }
+.bgtr-history-row:last-child { border-bottom: 0; }
+.bgtr-actions { list-style: none; margin: var(--sp-3) 0 0; padding: 0; }
+.bgtr-action, .bgtr-roll-item { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border-faint); font-size: var(--fs-13); }
+.bgtr-action:last-child, .bgtr-roll-item:last-child { border-bottom: 0; }
+.bgtr-link { background: none; border: 0; padding: 0; font: inherit; font-weight: var(--fw-bold); color: var(--text-link); text-align: left; cursor: pointer; }
+.bgtr-link:hover { color: var(--text-link-hover); text-decoration: underline; }
+.bgtr-danger { color: var(--status-danger); }
+.bgtr-warn { color: var(--status-warn-strong); }
+.bgtr-form { display: grid; gap: var(--sp-4); margin: var(--sp-4) 0; padding: var(--sp-5); border: 1px solid var(--border-faint); border-radius: var(--r-lg); }
+.bgtr-form textarea { width: 100%; }
+.bgtr-form .bgtr-btns { margin-bottom: 0; }

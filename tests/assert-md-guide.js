@@ -59,7 +59,7 @@ ASSERTIONS.push(
         _skip('Source files need filesystem access - runs under node tests/run.js, not in the browser runner.');
       }
       const pages = new Function('CONFIG', ALL_SOURCES['cc-router.js'] + '\nreturn CC_PAGES;')(CONFIG);
-      _assertEqual(pages.map(p => p.key), ['overview', 'claudeMcp'], 'CC_PAGES keys');
+      _assertEqual(pages.map(p => p.key), ['overview', 'goals', 'claudeMcp'], 'CC_PAGES keys');
       pages.forEach(p => _assertEqual(p.roles.slice().sort(), ['admin', 'leadership'], p.key + ' roles'));
       const bar = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'claudeMcp');
       if (!bar || bar.module !== 'command' || bar.href !== 'command-centre.html#claudeMcp') throw new Error('Command Bar entry missing or wrong');

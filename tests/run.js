@@ -97,6 +97,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'api-headcount.js'),
   path.join(JS_DIR, 'bizgoals-config.js'),   // N-532: CONFIG.BIZGOALS (declarations only; extends CONFIG)
   path.join(JS_DIR, 'bizgoals-data.js'),     // N-532: pure Goals & Actions rules (after bizgoals-config.js)
+  path.join(JS_DIR, 'bizgoals-track.js'),    // N-533: pure Goals & Actions tracker rules (after bizgoals-data.js)
   path.join(JS_DIR, 'api-bizgoals.js'),      // N-532: declarations only (Graph calls run only when a function is called)
   path.join(JS_DIR, 'api-admin.js'),   // N-381: declarations only; createSlaDefaultRows is asserted
   path.join(JS_DIR, 'api-pdp-core.js'), // N-479: PDP switch, access report / re-point, update writers (before api-pdp.js)
@@ -123,6 +124,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'pdp-track-ui.js'),     // N-440: shared tracker markup is asserted (declarations only; DOM only inside the handlers; loads before pdp-my.js)
   path.join(JS_DIR, 'pdp-assess-ui.js'),    // N-442: shared scoring block markup (declarations only; DOM only inside the handlers; loads before pdp-my.js)
   path.join(JS_DIR, 'pdp-calibrate-ui.js'), // N-443: Calibration tab markup (declarations only; DOM only inside the handlers)
+  path.join(JS_DIR, 'bizgoals-track-ui.js'), // N-533: Goals & Actions page markup is asserted (declarations only; DOM only inside the handlers)
   path.join(JS_DIR, 'pdp-my.js'),           // N-438: My Development markup is asserted (declarations only; needs the DOM only inside the render/handler functions)
   path.join(JS_DIR, 'pdp-team-page.js'),    // N-439: Team Development markup is asserted (declarations only; needs the DOM only inside the render/handler functions)
   path.join(JS_DIR, 'my-momentum-logic.js'),   // N-451: pure My Momentum tab rules (declarations only)
@@ -205,6 +207,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
   path.join(TESTS_DIR, 'assert-config-panel.js'),    // N-530
   path.join(TESTS_DIR, 'assert-bizgoals.js'),        // N-532
+  path.join(TESTS_DIR, 'assert-bizgoals-track.js'),  // N-533
   path.join(TESTS_DIR, 'assert-drift-duplicates.js'),   // N-478
   path.join(TESTS_DIR, 'assert-my-momentum.js'),     // N-451
   path.join(TESTS_DIR, 'assert-scorecard.js'),       // N-453

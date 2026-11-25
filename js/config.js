@@ -1677,8 +1677,10 @@ const CONFIG = {
     { key: 'onboardingRituals', label: 'Processes & Rituals',  module: 'myMomentum', href: 'my-momentum.html#onboardingRituals', roles: _MM_PAGE_ROLES },
     { key: 'onboardingExpectations', label: 'Expectations & SLAs', module: 'myMomentum', href: 'my-momentum.html#onboardingExpectations', roles: _MM_PAGE_ROLES },   // N-501
     { key: 'onboardingLibrary', label: 'Learning Library', module: 'myMomentum', href: 'my-momentum.html#onboardingLibrary', roles: _MM_PAGE_ROLES },   // N-519
-    // cc-router.js — Command Centre (2)
+    // cc-router.js — Command Centre (3)
     { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
+    // N-533 — business goals and actions (bizgoals-track-ui.js).
+    { key: 'goals', label: 'Goals & Actions', module: 'command', href: 'command-centre.html#goals', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // N-401 — install guide + download for Newton for Claude (cc-claude.js).
     { key: 'claudeMcp', label: 'Newton for Claude', module: 'command', href: 'command-centre.html#claudeMcp', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // mr-router.js — Market Analytics (2) — added 18 Aug 2026, folded into

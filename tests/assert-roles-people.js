@@ -685,6 +685,7 @@ ASSERTIONS.push(
     },
     command: {
       overview: ['admin', 'leadership'],
+      goals: ['admin', 'leadership'],
       claudeMcp: ['admin', 'leadership'],
     },
   };

@@ -6,6 +6,9 @@
 // decides the MCP side). Writes: capability bizgoalsEdit (Admin, Leadership), under Ghost Mode the ghosted role; the who stamp
 // is the real signed-in user and never comes from the caller. Deletes: bizgoalsDelete (Admin only). An update entry can be added
 // but never edited or deleted on its own (BG-D13); it goes only with its goal.
+// N-533 (BG-2): the Command Centre page (bizgoals-track-ui.js) calls only the tracker functions at the bottom of this file
+// plus addBusinessGoalUpdate / deleteBusinessGoal / deleteBusinessAction. Each re-reads fresh, applies the pure rule from
+// bizgoals-track.js, then goes through the N-532 writers above, so cleaning, stamping and the owner rule stay in one place.
 
 function _bgNumFilter(col, v) {
   const n = Number(v);
@@ -115,4 +118,96 @@ async function deleteBusinessGoal(id) {
 async function deleteBusinessAction(id) {
   await _bgActor('bizgoalsDelete');
   return deleteItem(CONFIG.BIZGOALS.LISTS.ACTIONS, id);
+}
+
+// ── N-533 (BG-2): tracker reads and writes ─────────────────────────────────────────────────────────────────────
+
+function _bgInvalidateAll() { const L = CONFIG.BIZGOALS.LISTS; [L.GOALS, L.ACTIONS, L.UPDATES].forEach(_cacheInvalidate); }
+
+// Everything the page draws from. denied = a list answered 403 (the user is in neither SharePoint group).
+// -> { goals, actions, updates, candidates, denied }
+async function getBusinessGoalsData({ fresh = false } = {}) {
+  const L = CONFIG.BIZGOALS.LISTS;
+  if (fresh) _bgInvalidateAll();
+  const [goals, actions, updates, candidates] = await Promise.all([getBusinessGoals(), getBusinessActions(), getBusinessGoalUpdates(), getBizGoalOwnerCandidates({ fresh })]);
+  const denied = [L.GOALS, L.ACTIONS, L.UPDATES].some(wasListDenied);
+  return { goals, actions, updates, candidates, denied };
+}
+
+// Create (no edit.id) or update a goal from the tracker form (nesting, level / period and carried rules: bizgoalsTrackerGoalPayload).
+async function saveTrackerBusinessGoal(edit) {
+  await _bgActor('bizgoalsEdit');
+  const e = edit || {};
+  _bgInvalidateAll();
+  const goals = await getBusinessGoals();
+  if (!e.id) return createBusinessGoal(bizgoalsTrackerGoalPayload(e, 'create', goals, null));
+  const existing = goals.find(g => String(g.id) === String(e.id));
+  return updateBusinessGoal(e.id, bizgoalsTrackerGoalPayload(e, 'update', goals, existing));
+}
+
+// Create (no edit.id) or update an action from the tracker form (BG-D12: an Open goal; bizgoalsTrackerActionPayload).
+async function saveTrackerBusinessAction(edit) {
+  await _bgActor('bizgoalsEdit');
+  const e = edit || {};
+  _bgInvalidateAll();
+  const [goals, actions] = await Promise.all([getBusinessGoals(), getBusinessActions()]);
+  if (!e.id) return createBusinessAction(bizgoalsTrackerActionPayload(e, 'create', goals, null));
+  const existing = actions.find(a => String(a.id) === String(e.id));
+  return updateBusinessAction(e.id, bizgoalsTrackerActionPayload(e, 'update', goals, existing));
+}
+
+// RAG / Status from the tracker selects. A carried goal whose copy still exists cannot change here.
+async function setBusinessGoalLive(id, patch) {
+  await _bgActor('bizgoalsEdit');
+  _bgInvalidateAll();
+  const goals = await getBusinessGoals();
+  const g = goals.find(x => String(x.id) === String(id));
+  if (!g) throw new Error('That goal was not found.');
+  if (g.Status === CONFIG.BIZGOALS.CARRIED && goals.some(c => c.CarriedFromID != null && String(c.CarriedFromID) === String(id))) {
+    throw new Error('This goal was carried forward. Change it in the year it was carried to.');
+  }
+  return updateBusinessGoal(id, bizgoalsLiveGoalPatch(patch));
+}
+
+async function setBusinessActionDone(id, done) {
+  await _bgActor('bizgoalsEdit');
+  return updateBusinessAction(id, { IsDone: !!done });
+}
+
+// The rollover plan from a fresh read (bizgoalsRolloverPlan); the stale-owner swap goes to the signed-in user.
+async function _bgRolloverPlanFresh(fromYear, goalIds, actorEmail) {
+  _bgInvalidateAll();
+  const data = await getBusinessGoalsData({ fresh: true });
+  return bizgoalsRolloverPlan({ goals: data.goals, actions: data.actions, updates: data.updates, candidates: data.candidates, fromYear, goalIds, actorEmail });
+}
+
+// Read-only: what rolling `goalIds` over from `fromYear` would do (the confirm step shows it).
+async function bizgoalsRolloverPreview(fromYear, goalIds) {
+  const actor = await _bgActor('bizgoalsEdit');
+  return _bgRolloverPlanFresh(fromYear, goalIds, actor.email);
+}
+
+// BG-D14 to BG-D17. Per goal, in this order: copy (unless a copy exists), move its open actions, close its open sub-goals,
+// add the audit entry (once), close the goal. The goal stays Open until the last step, so a failure part-way is finished by
+// running it again, never doubled. One goal failing does not stop the next.
+// -> { toYear, done: [{ goalId, copyId }], skipped: [{ goalId, reason }], failed: [{ goalId, message }] }
+async function rolloverBusinessGoals(fromYear, goalIds) {
+  const actor = await _bgActor('bizgoalsEdit');
+  const C = CONFIG.BIZGOALS;
+  const plan = await _bgRolloverPlanFresh(fromYear, goalIds, actor.email);
+  const out = { toYear: plan.toYear, done: [], skipped: plan.skipped, failed: [] };
+  for (const it of plan.items) {
+    try {
+      const copyId = it.copyId || String((await createBusinessGoal(it.copy)).id);
+      for (const aid of it.moveActionIds) await updateBusinessAction(aid, { GoalID: Number(copyId) });
+      for (const gid of it.closeIds) await updateBusinessGoal(gid, { Status: C.CARRIED });
+      if (it.addEntry) await addBusinessGoalUpdate({ GoalID: it.goalId, UpdateText: 'Carried forward to ' + plan.toYear + '.', StatusAtUpdate: C.CARRIED });
+      await updateBusinessGoal(it.goalId, { Status: C.CARRIED });
+      out.done.push({ goalId: it.goalId, copyId });
+    } catch (e) {
+      console.error('N-533: rollover failed for goal ' + it.goalId, e);
+      out.failed.push({ goalId: it.goalId, message: e.message });
+    }
+  }
+  return out;
 }

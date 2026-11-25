@@ -16,12 +16,21 @@ function toggleCCModuleDropdown() {
   if (dd) dd.classList.toggle('open');
 }
 
-function navigateToCC(page) {
+// N-533: one renderer per page key; an unknown key falls back to Overview. Leaving Goals & Actions with an unsaved
+// form asks first (bgtrConfirmLeave, bizgoals-track-ui.js).
+const CC_RENDERERS = {
+  overview:  container => renderCCOverview(container),
+  goals:     container => renderCCGoalsPage(container),
+  claudeMcp: container => renderCCClaudePage(container),
+};
+
+async function navigateToCC(page) {
   const container = document.getElementById('page-content');
-  const key = CC_PAGES.some(p => p.key === page) ? page : 'overview';
+  const key = CC_PAGES.some(p => p.key === page) && CC_RENDERERS[page] ? page : 'overview';
+  if (!(await bgtrConfirmLeave())) return;
   updateNavActiveLink(key);
   withViewTransition(async () => {
-    await (key === 'claudeMcp' ? renderCCClaudePage(container) : renderCCOverview(container));
+    await CC_RENDERERS[key](container);
     enterStagger(container, '.cc-tile');   // N-417: the overview's tiles (no .kpi-card / .dash-panel there)
   });
 }

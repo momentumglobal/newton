@@ -43,6 +43,15 @@ My Onboarding is Momentum's 30-day Talent Partner induction, built into My Momen
 - **v1 scope** — Talent Partner track only (the SDM track is v2), no pause (a late start is fixed by editing the start date), desktop only.
 - **More** — `Readme.html` (file map, lists and columns, access, gate rules, changelog) and `my-momentum-user-guide.html` (end-user guide for the My Momentum pages, including onboarding).
 
+## Goals & Actions
+
+Goals & Actions is where Leadership and the Board set and track Momentum's business goals and the actions behind them, nested Annual > H2 > Quarterly with a worst-first RAG roll-up, owners, a permanent update history and a yearly rollover.
+
+- **Page** — Command Centre > Goals & Actions (between Overview and Newton for Claude), plus a Goals & Actions tile on the Command Centre Overview that links to it.
+- **Access** — Admin and Leadership only. Both can add, edit, roll over and post updates; only Admin can delete.
+- **Data** — the `BusinessGoals`, `BusinessActions` and `BusinessGoalUpdates` SharePoint lists, locked to the Newton Admins and Newton Leadership groups. Leadership and Admin users can also ask Claude through the Newton for Claude `business_goals` tool (latest update per goal, names not emails).
+- **More** — `Readme.html` (file map, lists and columns, access, changelog) and `user-guide.html` (end-user guide).
+
 ## Stack
 
 - **Hosting** — GitHub Pages

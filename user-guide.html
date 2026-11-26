@@ -44,6 +44,7 @@
       <li><a href="#report-library">Report Library</a></li>
       <li><a href="#briefing-packs">Briefing Packs</a></li>
       <li><a href="#admin">Config Panel</a></li>
+      <li><a href="#goals-actions">Goals &amp; Actions (Command Centre)</a></li>
       <li><div class="nav-section-label">AI Agents</div></li>
       <li><a href="#ai-agents">Overview</a></li>
       <li><a href="#ai-agents-guidelines">Using Agents Well</a></li>
@@ -482,6 +483,38 @@
       <h3>SLA targets</h3>
       <p>Set the company default service-level targets for each project type. A blank target means that measure is not tracked. Projects can override these on their Project page. See <a href="#sla">Service levels (SLAs)</a>.</p>
       <div class="tip">User and access management has moved to the Newton OS Admin area, accessible via the <strong>Admin</strong> link on the Newton home screen.</div>
+    </div>
+    <div class="guide-section" id="goals-actions">
+      <h2>Goals &amp; Actions (Command Centre)</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p><strong>Goals &amp; Actions</strong> is the page where Leadership and the Board set and track Momentum&rsquo;s business goals and the actions behind them. In the MG Command Centre it sits in the sidebar between <strong>Overview</strong> and <strong>Newton for Claude</strong>. Only Admins and Leadership can open it.</p>
+      <h3>Goals</h3>
+      <p>Goals nest <strong>Annual</strong> &rarr; <strong>H2</strong> &rarr; <strong>Quarterly</strong>. Use <strong>Add goal</strong> and choose the level; a goal below Annual picks the goal it <em>Sits under</em>. Each goal has a title, <em>Why it matters</em>, <em>Success measures</em>, a target date, an owner, a RAG (Red, Amber or Green) and a status (Open, Achieved or Dropped). The <strong>Year</strong> select at the top switches year.</p>
+      <p>A goal&rsquo;s RAG is <em>Rolled up</em> worst-first from the goals under it, so a Green Annual goal with a Red Quarterly goal shows Red. Owners are picked from Admin and Leadership users.</p>
+      <h3>Actions</h3>
+      <p>Every action sits under an open goal and has an owner and a due date. Tick an action to mark it done. Open actions show <strong>Overdue</strong> or <strong>Due soon</strong> badges.</p>
+      <h3>Updates</h3>
+      <p><strong>Post update</strong> adds a dated entry with your name. The page shows the latest entry; <strong>History</strong> opens every entry for the goal. Entries cannot be edited or deleted. To correct one, post a new update.</p>
+      <h3>Carrying goals into next year</h3>
+      <p><strong>Carry forward</strong> on an open Annual goal, or <strong>Roll over year</strong> to pick several at once (all are ticked by default). Newton copies the goal into the next year and sets the old one to <em>Carried forward</em>. Its open H2 and Quarterly goals are closed with it, open actions move to the new goal, and done actions stay where they were. Set the new year&rsquo;s halves and quarters afresh.</p>
+      <h3>Overview tile and Newton for Claude</h3>
+      <p>The <strong>Goals &amp; Actions</strong> tile on the Command Centre Overview shows this year&rsquo;s open Annual goals by Red, Amber and Green and the number of overdue actions. Click it to open the page. Leadership and Admins who have Newton for Claude installed can also ask Claude about the business goals (by year, level, open or all goals). Claude sees the latest update for each goal, and names rather than email addresses.</p>
+      <div class="tip">Only Admins can <strong>Delete</strong> a goal or action. Leadership close a goal as <em>Dropped</em> instead.</div>
+      <div class="faq-item">
+        <div class="faq-q">Why can&rsquo;t I delete a goal?</div>
+        <div class="faq-a">Deleting is limited to Admins. Set the goal&rsquo;s status to Dropped, or Achieved when it is done. Its update history is kept.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why is someone missing from the Owner list?</div>
+        <div class="faq-a">The Owner list holds Admin and Leadership users only. An owner who has since lost that access stays on the goal until you change it, but cannot be chosen again.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I change an update I posted?</div>
+        <div class="faq-a">No. Updates are a permanent record. Post a new update with the correction.</div>
+      </div>
     </div>
     <div class="guide-section agent-section" id="ai-agents">
       <h2>AI Agents</h2>

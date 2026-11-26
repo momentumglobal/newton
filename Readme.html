@@ -122,7 +122,7 @@
         <div class="card accent-purple">
           <div class="card-title">MG Command Centre</div>
           <div class="card-file">command-centre.html</div>
-          <div class="card-desc">Executive ops dashboard. Four live RAG tiles — Revenue, Project Health, People, and Utilisation — each with an expandable detail panel. The Revenue tile expands to the full Revenue Tracking chart. Available to Admin and Leadership only.</div>
+          <div class="card-desc">Executive ops dashboard. Four live RAG tiles — Revenue, Project Health, People, and Utilisation — each with an expandable detail panel. The Revenue tile expands to the full Revenue Tracking chart. A fifth tile, Goals &amp; Actions (N-534), is a link to the Goals &amp; Actions page, not an expandable panel. Available to Admin and Leadership only.</div>
         </div>
         <div class="card accent-blue">
           <div class="card-title">Mobile App (PWA)</div>
@@ -206,6 +206,16 @@
         <li><strong>Step actions (N-516, ONB-D91&ndash;D94).</strong> An onboarding step can carry a Newton action (Config Panel &rarr; Checklists &rarr; Onboarding &rarr; Newton action, stored in <code>ChecklistTemplates.ActionKey</code>; <code>ItemType</code> stays <code>tick</code>). The registry is <code>CONFIG.ONBOARDING.STEP_ACTIONS</code> (not the Project / Role <code>CHECKLIST_ACTIONS</code>); the handlers are <code>ONB_STEP_ACTION_RUN</code>. v1 has one: <code>onb.welcomeEmail</code>, the &ldquo;Draft welcome email&rdquo; button in My Team &rarr; Onboarding for whoever can tick the step. It previews a welcome email (Week 1 agenda = every non-Library step due on Days 1&ndash;5, buddy, line manager) with Copy email and Open in Outlook (<code>mailto:</code>, To left blank). No mail permission, no SharePoint write, and it never ticks the step. <strong>Branded (N-517, ONB-D95&ndash;D101):</strong> the email uses the Momentum look (navy logo header, &ldquo;Welcome to Momentum Global&rdquo; eyebrow and &ldquo;Your first week, {first}&rdquo; headline, one light card per Week 1 day, navy &ldquo;Momentum Global&rdquo; footer), built by the shared <code>email-brand.js</code> kit and previewed in a sandboxed frame. HTML can&rsquo;t travel in a <code>mailto:</code>, so it goes by the clipboard only: Copy email is the primary button, and Open in Outlook copies it too, then opens a subject-only mail to paste into.</li>
         <li><strong>Go-live gate.</strong> Switching On is an Admin action in the Config Panel; the checklist is <code>newton-pipeline/N-505-golive.md</code>. The non-admin live checks (a line manager ticking steps, non-admin writes to <code>OnboardingSignoffs</code>) cannot be proved until a real plan runs with a non-admin line manager; they are tracked as N-504 (runbook <code>N-504-pilot-runbook.md</code>). Until a CSD starts a plan, switching On only exposes the two reference sub-tabs. Back-out is the Off switch.</li>
         <li><strong>Where the detail is.</strong> <code>newton-pipeline/Newton_MyOnboarding_Nov2026.md</code> (decisions ONB-D1&ndash;D90), the <code>js/onboarding-*.js</code> / <code>js/api-onboarding*.js</code> rows (Files section), and the OnboardingPlans / OnboardingSignoffs / OnboardingContent / ChecklistTemplates / AppSettings rows (SharePoint section).</li>
+      </ul>
+
+      <h3>Goals &amp; Actions &mdash; MG Command Centre (N-531 &rarr; N-536, live)</h3>
+      <p>Business goals for Leadership and the Board, tracked on a Command Centre page (key <code>goals</code>, between Overview and Newton for Claude). Goals nest Annual &rarr; H2 &rarr; Quarterly with a worst-first RAG roll-up; every action sits under an open goal; update entries are an append-only history. It copies the PDP tracker into its own <code>bizgoals-*</code> files and changes no PDP file (BG-D9); merging the shared rules is parked as N-537 until after the January 2027 PDP go-live.</p>
+      <ul>
+        <li><strong>Lists (N-532).</strong> <code>BusinessGoals</code>, <code>BusinessActions</code> and <code>BusinessGoalUpdates</code>. SharePoint access: Newton Admins Edit, Newton Leadership Contribute without delete. They are never cached persistently and are not in the Command Bar.</li>
+        <li><strong>Access.</strong> <code>bizgoalsEdit</code> (add, edit, roll over, post updates): Admin and Leadership. <code>bizgoalsDelete</code>: Admin only; Leadership close a goal as Dropped. The Owner picker lists Admin and Leadership users only; an owner who later loses access stays on the goal until it is changed.</li>
+        <li><strong>Rollover (N-533, BG-D14&ndash;D17).</strong> Annual goals only: the goal is copied into the next year (<code>CarriedFromID</code>) and the old one set to <code>Carried forward</code>; its open H2 and Quarterly goals close with it; open actions move to the new goal; done actions stay. Per goal (Carry forward) or in bulk (Roll over year).</li>
+        <li><strong>Overview tile (N-534, BG-D18&ndash;D20).</strong> The current calendar year&rsquo;s open Annual goals by rolled-up RAG, plus overdue actions across all years (open, due before today, goal not Carried forward). The whole tile links to the page; there is no drill-down.</li>
+        <li><strong>Newton for Claude (N-535, BG-D21&ndash;D23).</strong> The <code>business_goals</code> tool reads through <code>bizgoalsTrackerModel()</code>, so RAG, overdue and due-soon match the page. Goal text is returned as written; the latest update per goal only; names, never emails.</li>
       </ul>
 
       <h3>Module switcher</h3>
@@ -1654,6 +1664,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
         <tr><td><code>utilisation</code></td><td>Percentages only, overall and by level, plus the year outlook. Same helpers as the People Dashboard.</td></tr>
         <tr><td><code>project_team</code></td><td>Current and upcoming members of a project, with no rates, fees or emails. <code>partner</code> marks an External partner (N-402).</td></tr>
         <tr><td><code>workforce_segmentation</code></td><td>Headcount by location and contract type (deployable and internal staff) and by level (deployable only), plus internal staff by function, as of a month end (today for this month). Optional <code>staffType</code> (all / deployable / internal): <code>deployable</code> counts only the utilisation population (no internal staff, CSDs or partners) in all three tables. Counts and percentages only. Same helper as the People Dashboard Workforce Segmentation panel (N-466, N-468, N-524).</td></tr>
+        <tr><td><code>business_goals</code></td><td>Leadership business goals (Command Centre &rarr; Goals &amp; Actions): the Annual &rarr; H2 &rarr; Quarterly tree with rolled-up RAG, owner name, latest update (date, author name, text) and open actions in full, done actions as a count. Optional <code>year</code> (default this year), <code>level</code> (Annual, H2 or Quarterly, as a flat list) and <code>status</code> (<code>open</code> default, or <code>all</code>). Goal text is free text and is returned as written (N-535).</td></tr>
         <tr><td><code>joiners</code></td><td>Deployable and internal staff who start in a month, including people starting later in the month: name, level or function, location and start date. No pay, contract type, email or reporting line (N-467).</td></tr>
       </table>
 
@@ -1674,6 +1685,18 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">Goals &amp; Actions live in the Command Centre (N-531 &rarr; N-536)</div>
+        <ul>
+          <li><strong>New page.</strong> Command Centre &rarr; Goals &amp; Actions (Admin and Leadership): business goals nested Annual &rarr; H2 &rarr; Quarterly, worst-first RAG roll-up, actions with owners and due dates, an append-only update history and a yearly rollover (Carry forward and Roll over year). Only Admin can delete.</li>
+          <li><strong>Three new lists</strong> (<code>BusinessGoals</code>, <code>BusinessActions</code>, <code>BusinessGoalUpdates</code>), locked to Newton Admins and Newton Leadership. The tracker is copied from the PDP tracker into <code>bizgoals-*</code> files; the merge is parked as N-537 for after the January 2027 PDP go-live.</li>
+          <li><strong>Command Centre Overview</strong> gains a fifth tile, Goals &amp; Actions: this year&rsquo;s open Annual goals by RAG and the overdue-action count, linking to the page.</li>
+          <li><strong>Newton for Claude</strong> gains the <code>business_goals</code> tool (Leadership and Admin only).</li>
+          <li><strong>Docs:</strong> a Goals &amp; Actions section in <code>user-guide.html</code>, this Readme and <code>README.md</code>. The suite passes (1008 of 1010, 2 skipped) in all three zones.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>

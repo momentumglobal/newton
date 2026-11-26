@@ -141,10 +141,10 @@ async function renderHiringPlanPage(selectedProjectId = null) {
   const canEdit = role === 'admin' || role === 'delivery_manager';
   const isAdmin = role === 'admin';
 
-  const projects = (await getScopedProjects(email, false)).filter(p => p.ProjectType === 'CoE');
+  const projects = (await getScopedProjects(email, true)).filter(p => p.ProjectType === 'CoE');
   if (!projects.length) {
     main.innerHTML = `<div class="page-header"><h2>Hiring Plan</h2></div>
-      ${emptyStateBlock({ icon: 'briefcase', message: "No CoE projects found. Set a project's type to CoE in the project form to build a hiring plan." })}`;
+      ${emptyStateBlock({ icon: 'briefcase', message: "No live CoE projects found. Set a live project's type to CoE in the project form to build a hiring plan." })}`;
     if (window.lucide) lucide.createIcons();
     return;
   }

@@ -12,8 +12,13 @@
 //     name:        'list_projects',            // lower_snake_case, unique, not 'newton_status'
 //     description: 'What it answers, in one or two sentences.',
 //     inputSchema: { type: 'object', properties: { ... }, required: [ ... ], additionalProperties: false },
-//     handler:     mcpListProjects,            // a named top-level async function (tests/lint-mcp.js)
+//     roles:       ['admin', 'leadership'],    // N-546 (AMCP-A1/A2): who may call it, a subset of
+//                                              // CONFIG.MCP.allowedRoles; no roles = never served
+//     handler:     mcpListProjects,            // a named top-level async function (tests/lint-mcp.js),
+//                                              // called (args, ctx); ctx = frozen { email, role }
 //   }
+// This file holds read tools only. Write tools (preview + commit, N-546 AMCP-A4) go in
+// mcp/newton-write-tools.js (N-548 onwards), checked by tests/lint-mcp.js lintMcpWriteTools.
 //
 // Rules (N-378, specs/N-393.md):
 //   - Reads only through the api*.js getters registered in tests/lint-mcp.js (MCP_GETTER_LISTS);
@@ -27,7 +32,7 @@
 //     excludeInternalProjectData, as the Command Centre / Placement Analytics do; answers for one
 //     named project don't, as the Project Dashboard doesn't (N-393 B5).
 //   - The server adds asOf + newtonBuild to every result and gates every call to
-//     CONFIG.MCP.allowedRoles; handlers do neither.
+//     CONFIG.MCP.allowedRoles and then the entry's roles; handlers do neither.
 //   - newton_status is answered by the bootstrap (server-core.js), not here.
 
 // The nine WeeklyActivity funnel counts, in funnel order (computeSnapshotMetrics' activityTotals keys).
@@ -1033,6 +1038,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpListProjects,
   },
   {
@@ -1047,6 +1053,7 @@ var MCP_TOOLS = [
       required: ['project'],
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpProjectSummary,
   },
   {
@@ -1063,6 +1070,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpListRoles,
   },
   {
@@ -1076,6 +1084,7 @@ var MCP_TOOLS = [
       required: ['roleId'],
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpRoleDetail,
   },
   {
@@ -1089,6 +1098,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpActivitySummary,
   },
   {
@@ -1104,6 +1114,7 @@ var MCP_TOOLS = [
       required: ['from', 'to'],
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpListPlacements,
   },
   {
@@ -1117,6 +1128,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpTimeToFill,
   },
   {
@@ -1129,12 +1141,14 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpProjectScorecards,
   },
   {
     name: 'bench',
     description: 'Staff on the bench now (the Org Chart Unassigned pool): name, level, location and since when. Names only; no money. People who have not started yet, placeholders, internal staff, external partners and CSDs are never bench.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    roles: ['admin', 'leadership'],
     handler: mcpBench,
   },
   {
@@ -1150,6 +1164,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpUtilisation,
   },
   {
@@ -1164,6 +1179,7 @@ var MCP_TOOLS = [
       required: ['project'],
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpProjectTeam,
   },
   {
@@ -1178,6 +1194,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpWorkforceSegmentation,
   },
   {
@@ -1191,6 +1208,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpJoiners,
   },
   {
@@ -1205,6 +1223,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
+    roles: ['admin', 'leadership'],
     handler: mcpBusinessGoals,
   },
 ];

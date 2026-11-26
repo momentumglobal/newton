@@ -1791,24 +1791,33 @@ const CONFIG = {
   // Read by the local MCP server (mcp/bootstrap/*.js), which runs this file and the
   // scripts below in a Node vm context. No Newton page reads this block. Public repo:
   // nothing here is secret.
-  //   contract      must equal MCP_CONTRACT in mcp/bootstrap/server.js. Bump BOTH when the
+  //   contract      must equal MCP_CONTRACT in mcp/bootstrap/server-core.js. Bump BOTH when the
   //                 bootstrap <-> live-code contract changes (shim names, this block's shape);
   //                 an installed bundle with a different number tells the user to update.
   //   scripts       loaded after js/config.js, in this order (a subset of production order;
   //                 must stay loadable with no DOM). N-393/N-394 add files with a reason each.
-  //   allowedLists  MCP-D7. The server's fetch shim refuses every other list, and every
-  //                 write. N-393/N-394 add lists with a reason each.
-  //   allowedRoles  MCP-D5. Who may use it. A usage gate, not a security boundary.
-  //   gateTtlMs     how long a resolved role is reused before getEffectiveRole runs again.
+  //   allowedLists  MCP-D7. The server's fetch shim refuses every other list for reads.
+  //                 N-393/N-394 add lists with a reason each.
+  //   allowedRoles  MCP-D5 / AMCP-A1. The outer usage gate; every tool also lists its own
+  //                 `roles` (a subset). A usage gate, not a security boundary.
+  //   gateTtlMs     how long a resolved role is reused before getEffectiveRole runs again
+  //                 (a confirmed write always re-resolves it).
+  //   confirmTtlMs  N-546 (AMCP-A4): how long a write preview's confirm token lives.
+  //   writeLists    N-546 (AMCP-A5): per list, the SharePoint internal field names each method
+  //                 may send (create = POST, update = PATCH; no key = method refused). The shim
+  //                 also needs the list in the bundle's WRITE_LIST_CEILING (loader.js), and
+  //                 only writes while a confirmed commit has armed it. Never DELETE or PUT.
   //   outputDenyFields  N-393 (MCP-D6): field names (after FIELD_ALIASES) that may never be a
   //                 key in any tool output - read locally to compute, never returned.
   //                 mcpOutputGuard (mcp/newton-tools.js) enforces it on every result.
   //   windows       N-393: default / maximum week windows for the tools (mcp/newton-tools.js).
   //   maxRows       N-393: row cap for list tools; they report total + truncated.
-  // The bundle reads only contract/scripts/allowedLists/allowedRoles/gateTtlMs; the N-393
-  // keys are read by mcp/newton-tools.js alone, so adding them needs no contract bump.
+  // The bundle reads contract/scripts/allowedLists/allowedRoles/gateTtlMs/confirmTtlMs/
+  // writeLists; the N-393 keys are read by mcp/newton-tools.js alone, so adding them needs no
+  // contract bump. Contract 2 (N-546, specs/N-545.md AMCP-A6): per-tool roles, the write
+  // preview/commit entry shape, confirm tokens, writeLists + confirmTtlMs, fetchGuide.
   MCP: {
-    contract: 1,
+    contract: 2,
     scripts: [
       'js/actions.js', 'js/utils.js', 'js/templates-logic.js', 'js/project-types.js', 'js/people-logic.js', 'js/revenue-logic.js',
       'js/headcount.js', 'js/permissions.js',
@@ -1821,9 +1830,25 @@ const CONFIG = {
       'People', 'Assignments', 'SalesForecasts', 'UserAssignments', 'LeadershipAccess',
       'AnomalyAcks',   // N-393: activity_summary marks acknowledged funnel flags as Data Health does. Read only; Note never returned.
       'BusinessGoals', 'BusinessActions', 'BusinessGoalUpdates',   // N-535: business_goals. Admin + Leadership lists; goal free text is returned by design (BG-D21), emails never.
+      'Notifications',   // N-546 (AMCP-A5): read only for fireNotification's dedupe check (N-548 hire prompt). Never returned.
     ],
-    allowedRoles: ['admin', 'leadership'],
+    allowedRoles: ['admin', 'leadership'],   // N-553 opens this to delivery_manager / talent_partner with read scoping
     gateTtlMs: 600000,   // 10 minutes
+    confirmTtlMs: 300000,   // 5 minutes (AMCP-A4)
+    writeLists: {
+      WeeklyActivity: {
+        create: ['ProjectIDLookupId', 'RoleIDLookupId', 'TalentPartner', 'Yeare', 'WeekNumber', 'WeekEndingDate',
+                 'Outreach', 'Responses', 'Screened', 'Submitted', 'Interview1', 'InterviewTwoPlus', 'FinalInterview',
+                 'Offers', 'Hires', 'SubmittedAt', 'Source'],
+        update: ['Outreach', 'Responses', 'Screened', 'Submitted', 'Interview1', 'InterviewTwoPlus', 'FinalInterview',
+                 'Offers', 'Hires', 'SubmittedAt', 'Source',
+                 'ProjectIDLookupId'],   // N-315 heal PATCH from createWeeklyActivity only
+      },
+      Roles:         { update: ['Stage'] },   // N-549: stage moves only
+      RoleHistory:   { create: ['RoleIDLookupId', 'Field', 'OldValue', 'NewValue', 'ChangedBy', 'ChangedAt', 'Source'] },
+      Notifications: { create: ['Title', 'RecipientEmail', 'TriggerType', 'TriggerKey', 'Status', 'IsRead', 'Tone',
+                                'DeepLink', 'Body', 'CreatedAt'] },   // N-548 hire prompt (AMCP-A9)
+    },
     outputDenyFields: {
       Projects:       ['Notes'],
       Roles:          ['Budget', 'Currency', 'HiringManager', 'Notes'],
@@ -1838,6 +1863,7 @@ const CONFIG = {
       BusinessGoals:       ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'],   // N-535: owners are shown by name; no emails or who-changed stamps
       BusinessActions:     ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'],   // N-535
       BusinessGoalUpdates: ['AuthorEmail'],                                    // N-535: the author is shown by name
+      Notifications:       ['RecipientEmail', 'Body', 'DeepLink'],             // N-546: backstop - no tool returns Notifications rows
     },
     windows: {
       summaryWeeks:      13,   // project_summary hires window (default)

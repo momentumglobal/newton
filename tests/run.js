@@ -298,6 +298,10 @@ sandbox.REPO_FILES = {
 sandbox.MCP_SOURCES = {
   'newton-tools.js': fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-tools.js'), 'utf8'),
 };
+// N-546: the write tools file arrives in N-548; lintMcpWriteTools runs on it once it exists.
+if (fs.existsSync(path.join(ROOT_DIR, 'mcp', 'newton-write-tools.js'))) {
+  sandbox.MCP_SOURCES['newton-write-tools.js'] = fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-write-tools.js'), 'utf8');
+}
 
 // N-470: lint-shared-files.js / lint-load-lists.js. TEST_RUN_FILES is SOURCE_FILES as repo-relative
 // 'js/x.js' / 'mcp/x.js'; TEST_INDEX_HTML is the browser harness page; ROOT_FILE_SET is every file

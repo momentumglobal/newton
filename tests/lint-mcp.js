@@ -156,3 +156,81 @@ function lintMcpTools(src, cfg) {
   });
   return out.filter(function (v) { return v.problem; }).sort(function (a, b) { return a.line - b.line; });
 }
+
+// ── N-546 (specs/N-545.md AMCP-A5): write tools ─────────────────────────────────────────
+// mcp/newton-write-tools.js (from N-548) holds the preview + commit tools. Writes reach
+// Graph only through Newton's own writers, and only from a commit: the server arms the fetch
+// shim around commit(plan, ctx) and nothing else, so a writer anywhere else would just 405 -
+// this lint stops it shipping. N-548 / N-549 / N-550 add their extracted DOM-free writers
+// (e.g. applyRoleStageChange) here, each with a reason.
+var MCP_APPROVED_WRITERS = [
+  'createWeeklyActivity',   // N-548: N-315 ProjectID resolve + verify/heal
+  'updateItem',             // N-548: weekly edits (the nine counts + Source / SubmittedAt)
+  'updateRoleWithHistory',  // N-549: Stage + RoleHistory
+  'fireNotification',       // N-548: the Hires > 0 placement prompt (AMCP-A9)
+  'createSavedReport',      // N-550: draft report only
+  'updateSavedReport',      // N-550
+];
+
+// Top-level `function name(` / `async function name(` declarations in `code` (comments and
+// strings already blanked): [{ name, start, end }], end = index after the body's closing brace.
+function _mcpTopFunctions(code) {
+  var out = [];
+  var re = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
+  var m;
+  while ((m = re.exec(code)) !== null) {
+    var i = m.index + m[0].length;
+    var paren = 1;
+    while (i < code.length && paren > 0) { if (code[i] === '(') paren++; else if (code[i] === ')') paren--; i++; }
+    var open = code.indexOf('{', i);
+    if (open === -1) continue;
+    var depth = 0;
+    var j = open;
+    for (; j < code.length; j++) {
+      if (code[j] === '{') depth++;
+      else if (code[j] === '}') { depth--; if (depth === 0) { j++; break; } }
+    }
+    out.push({ name: m[1], start: m.index, end: j });
+    re.lastIndex = j;
+  }
+  return out;
+}
+
+// src: mcp/newton-write-tools.js text. cfg: CONFIG. Returns [{ line, rule, problem }].
+// The graph / transport / dom / spread / getter rules are lintMcpTools' own; `write` becomes:
+// a write-shaped call is allowed only when it names an MCP_APPROVED_WRITERS function AND sits
+// directly in a top-level function named by a `commit: <name>` property. Previews, helpers
+// and top-level code never write. `commit` must name a top-level function (no inline one).
+function lintMcpWriteTools(src, cfg) {
+  var raw = String(src || '');
+  var st = _mcpLintStrip(raw);
+  var out = lintMcpTools(raw, cfg).filter(function (v) { return v.rule !== 'write' && v.line !== 0; });
+  var fns = _mcpTopFunctions(st.code);
+  var fnNames = {};
+  fns.forEach(function (f) { fnNames[f.name] = true; });
+  var commits = {};
+  var m;
+  var named = /(^|[^\w$.])commit\s*:\s*([A-Za-z_$][\w$]*)\s*(?=[,}\n\r])/g;
+  while ((m = named.exec(st.code)) !== null) {
+    if (m[2] === 'async' || m[2] === 'function') continue;
+    commits[m[2]] = true;
+    if (!fnNames[m[2]]) out.push({ line: _mcpLineOf(st.code, m.index), rule: 'write', problem: 'commit: ' + m[2] + ' is not a top-level function in this file' });
+  }
+  var inline = /(^|[^\w$.])commit\s*:\s*(async\b|function\b|\(|[A-Za-z_$][\w$]*\s*=>)|(^|[^\w$.])commit\s*\([^)]*\)\s*\{/g;
+  while ((m = inline.exec(st.code)) !== null) {
+    out.push({ line: _mcpLineOf(st.code, m.index), rule: 'write', problem: 'commit must name a top-level function, not an inline one' });
+  }
+  var writeRe = /(^|[^\w$.])((?:create|update|delete|save|sync|write|acknowledge|remove|set|post|send)[A-Z]\w*|createItem|updateItem|deleteItem)\s*\(/g;
+  while ((m = writeRe.exec(st.code)) !== null) {
+    var at = m.index + m[1].length;
+    var owner = null;
+    fns.forEach(function (f) { if (f.start <= at && at < f.end) owner = f; });
+    var name = m[2];
+    if (owner && commits[owner.name]) {
+      if (MCP_APPROVED_WRITERS.indexOf(name) === -1) out.push({ line: _mcpLineOf(st.code, at), rule: 'write', problem: 'writer ' + name + '() in commit ' + owner.name + ' is not in MCP_APPROVED_WRITERS (tests/lint-mcp.js)' });
+      continue;
+    }
+    out.push({ line: _mcpLineOf(st.code, at), rule: 'write', problem: 'write-shaped call ' + name + '() outside a commit function' + (owner ? ' (in ' + owner.name + ')' : '') + ' - previews and helpers never write' });
+  }
+  return out.sort(function (a, b) { return a.line - b.line; });
+}

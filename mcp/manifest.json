@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "newton",
   "display_name": "Newton for Claude",
-  "version": "1.0.1",
-  "description": "Read-only Newton reporting and people data for Momentum Global leadership.",
+  "version": "2.0.0",
+  "description": "Newton reporting and people data, and (from later updates) guided updates, for Momentum Global, computed by Newton's own code.",
   "author": { "name": "Momentum Global" },
   "icon": "icon.png",
   "server": {

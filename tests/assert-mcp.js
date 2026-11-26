@@ -41,10 +41,10 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-393 AC2 CONFIG.MCP: AnomalyAcks allowed, outputDenyFields covers every MCP-D6 field, windows + maxRows set, contract still 1',
+    name: 'N-393 AC2 CONFIG.MCP: AnomalyAcks allowed, outputDenyFields covers every MCP-D6 field, windows + maxRows set, contract 2 (N-546)',
     fn: function () {
       const m = CONFIG.MCP;
-      _assertEqual(m.contract, 1, 'contract unchanged (B8)');
+      _assertEqual(m.contract, 2, 'contract 2 since N-546 (N-393 B8 kept it at 1)');
       if (!m.allowedLists.includes('AnomalyAcks')) throw new Error('AnomalyAcks not in allowedLists');
       const d = m.outputDenyFields;
       const need = { Placements: ['CandidateName', 'SalaryAgreed', 'Notes'], RejectedOffers: ['CandidateName', 'SalaryOffered', 'RejectionReason'],
@@ -170,7 +170,7 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-535 CONFIG.MCP: the four bizgoals scripts load in dependency order after api-orgchart.js and before analytics.js; the three lists are allowed; the five email keys are denied; PeoplePay still never allowed; contract unchanged',
+    name: 'N-535 CONFIG.MCP: the four bizgoals scripts load in dependency order after api-orgchart.js and before analytics.js; the three lists are allowed; the five email keys are denied; PeoplePay still never allowed; contract 2 (N-546)',
     fn: function () {
       const m = CONFIG.MCP, sc = m.scripts;
       const order = ['js/api-orgchart.js', 'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js', 'js/analytics.js'].map(f => sc.indexOf(f));
@@ -181,7 +181,7 @@ ASSERTIONS.push(
       if (m.allowedLists.includes('PeoplePay')) throw new Error('PeoplePay must never be allowed');
       _assertEqual([m.outputDenyFields.BusinessGoals, m.outputDenyFields.BusinessActions, m.outputDenyFields.BusinessGoalUpdates],
         [['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'], ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'], ['AuthorEmail']], 'email keys denied');
-      _assertEqual(m.contract, 1, 'contract unchanged');
+      _assertEqual(m.contract, 2, 'contract 2 (N-546)');
       ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail', 'AuthorEmail'].forEach(k => {
         const bad = { goals: [{ x: {} }] };
         bad.goals[0].x[k] = 'a@b.co';
@@ -192,10 +192,10 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-394 AC2 CONFIG.MCP: api-orgchart.js loads before analytics.js with newton-tools.js still last; Assignments / SalesForecasts money + email fields denied; contract still 1',
+    name: 'N-394 AC2 CONFIG.MCP: api-orgchart.js loads before analytics.js with newton-tools.js still last; Assignments / SalesForecasts money + email fields denied; contract 2 (N-546)',
     fn: function () {
       const m = CONFIG.MCP;
-      _assertEqual(m.contract, 1, 'contract unchanged');
+      _assertEqual(m.contract, 2, 'contract 2 (N-546)');
       const sc = m.scripts;
       if (sc.indexOf('js/api-orgchart.js') === -1) throw new Error('js/api-orgchart.js missing from CONFIG.MCP.scripts');
       if (!(sc.indexOf('js/api.js') < sc.indexOf('js/api-orgchart.js') && sc.indexOf('js/api-orgchart.js') < sc.indexOf('js/analytics.js'))) throw new Error('api-orgchart.js must load after api.js and before analytics.js');
@@ -303,6 +303,67 @@ ASSERTIONS.push(
         if (re.test(html)) throw new Error('rendered guide contains ' + re + ' - the README uses syntax the renderer does not handle');
       });
       if (html.indexOf('Claude_&lt;id&gt;') < 0) throw new Error('Claude_<id> must render as visible text');
+    },
+  },
+);
+
+// ── N-546 (AMCP-2): contract 2 — per-tool roles, writeLists, the write-tools lint ──
+ASSERTIONS.push(
+  {
+    name: 'N-546 AC1-AC3 CONFIG.MCP contract 2: allowedRoles still Admin + Leadership, Notifications readable (dedupe only, denied keys), confirmTtlMs 5 min, writeLists shape; every MCP_TOOLS entry is a read tool with roles [admin, leadership]',
+    fn: function () {
+      const m = CONFIG.MCP;
+      _assertEqual(m.contract, 2, 'contract');
+      _assertEqual(Array.from(m.allowedRoles), ['admin', 'leadership'], 'allowedRoles (N-553 opens it to DM / TP)');
+      _assertEqual(m.allowedLists.includes('Notifications'), true, 'Notifications readable for fireNotification dedupe');
+      ['RecipientEmail', 'Body', 'DeepLink'].forEach(f => { if (!(m.outputDenyFields.Notifications || []).includes(f)) throw new Error('outputDenyFields.Notifications lacks ' + f); });
+      _assertEqual(m.confirmTtlMs, 300000, 'confirmTtlMs');
+      _assertEqual(Object.keys(m.writeLists), ['WeeklyActivity', 'Roles', 'RoleHistory', 'Notifications'], 'writeLists lists (SavedReports joins in N-550)');
+      Object.keys(m.writeLists).forEach(list => {
+        const spec = m.writeLists[list];
+        Object.keys(spec).forEach(k => {
+          if (k !== 'create' && k !== 'update') throw new Error(`writeLists.${list}.${k}: only create / update`);
+          if (!Array.isArray(spec[k]) || !spec[k].length || spec[k].some(f => typeof f !== 'string' || !f)) throw new Error(`writeLists.${list}.${k} must be non-empty field names`);
+          if (new Set(spec[k]).size !== spec[k].length) throw new Error(`writeLists.${list}.${k} has a duplicate`);
+        });
+      });
+      _assertEqual(m.writeLists.Roles, { update: ['Stage'] }, 'Roles: Stage updates only');
+      _assertEqual(m.writeLists.RoleHistory.update, undefined, 'RoleHistory: never updated');
+      const counts = ['Outreach', 'Responses', 'Screened', 'Submitted', 'Interview1', 'InterviewTwoPlus', 'FinalInterview', 'Offers', 'Hires'];
+      counts.forEach(f => {
+        if (!m.writeLists.WeeklyActivity.create.includes(f) || !m.writeLists.WeeklyActivity.update.includes(f)) throw new Error('WeeklyActivity create + update need ' + f);
+      });
+      ['RoleIDLookupId', 'TalentPartner', 'Yeare', 'WeekNumber', 'WeekEndingDate'].forEach(f => {
+        if (m.writeLists.WeeklyActivity.update.includes(f)) throw new Error('an edit must never move a row: ' + f + ' is not updatable');
+      });
+      _assertEqual(MCP_FUNNEL_FIELDS.map(f => f === 'Interview2Plus' ? 'InterviewTwoPlus' : f), counts, 'the nine write names match the read funnel (Interview2Plus reads, InterviewTwoPlus writes)');
+      MCP_TOOLS.forEach(t => {
+        _assertEqual(Array.from(t.roles || []), ['admin', 'leadership'], t.name + ' roles');
+        if ('write' in t) throw new Error(t.name + ': newton-tools.js holds read tools only');
+        if (typeof t.handler !== 'function') throw new Error(t.name + ': no handler');
+      });
+    },
+  },
+  {
+    name: 'N-546 AC20 lintMcpWriteTools: writers only in a named commit function and only approved ones; previews, helpers, top level and inline commits fail; the read rules still apply; mcp/newton-write-tools.js clean when present',
+    fn: function () {
+      const rules = s => lintMcpWriteTools(s, CONFIG).map(v => v.rule);
+      const good = 'async function wtCommit(plan, ctx) {\n  const row = await createWeeklyActivity(plan.fields);\n  await fireNotification(plan.note);\n  return { id: row.id };\n}\n' +
+        'async function wtPreview(args, ctx) {\n  return { summary: "x", changes: [], plan: {} };\n}\n' +
+        'MCP_TOOLS.push({ name: "t", roles: ["admin"], write: true, preview: wtPreview, commit: wtCommit });\n';
+      _assertEqual(rules(good), [], 'approved writers in a commit function');
+      _assertEqual(rules('async function p(a) { return updateItem("Roles", 1, {}); }\nasync function c(p) { return 1; }\nMCP_TOOLS.push({ preview: p, commit: c });\n'), ['write'], 'writer in a preview');
+      _assertEqual(rules('function h() { return createWeeklyActivity({}); }\nasync function c(p) { return h(); }\nMCP_TOOLS.push({ commit: c });\n'), ['write'], 'writer in a helper the commit calls');
+      _assertEqual(rules('createItem("WeeklyActivity", {});\n'), ['write'], 'writer at top level');
+      _assertEqual(rules('async function c(p) { return deleteItem("Roles", 1); }\nMCP_TOOLS.push({ commit: c });\n'), ['write'], 'unapproved writer in a commit');
+      _assertEqual(rules('MCP_TOOLS.push({ commit: async (p) => 1 });\n'), ['write'], 'inline commit');
+      _assertEqual(rules('MCP_TOOLS.push({ commit(p) { return 1; } });\n'), ['write'], 'shorthand commit method');
+      _assertEqual(rules('MCP_TOOLS.push({ commit: missing });\n'), ['write'], 'commit names no function in the file');
+      _assertEqual(rules('async function c(p) { return fetch("/sites/x"); }\nMCP_TOOLS.push({ commit: c });\n'), ['graph', 'transport'], 'Graph path + direct transport still caught');
+      _assertEqual(rules('async function c(p) { return { ...p }; }\nMCP_TOOLS.push({ commit: c });\n'), ['spread'], 'spread still caught');
+      if (typeof MCP_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const src = MCP_SOURCES['newton-write-tools.js'];
+      if (src !== undefined) _assertEqual(lintMcpWriteTools(src, CONFIG).map(v => `${v.line} ${v.rule}: ${v.problem}`), [], 'lintMcpWriteTools on mcp/newton-write-tools.js');
     },
   },
 );

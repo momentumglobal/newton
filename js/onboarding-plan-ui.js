@@ -62,7 +62,7 @@ function onbCardHtml(m) {
     body = `<p class="ppl-muted-note">${escHtml(T.derivedNote)}</p>
       <div class="emp-actions"><button type="button" class="btn-secondary"${act('onbCloseRecord', String(st.plan.id))}>${escHtml(T.closeRecord)}</button></div>`;
   } else {
-    body = `<p class="ppl-muted-note">${escHtml(onbReasonText(st.reason, onbTrackFor(m.person)))}</p>`;
+    body = `<p class="ppl-muted-note">${escHtml(onbReasonText(st.reason, onbTrackFor(m.person), m.person && m.person.StaffFunction))}</p>`;
   }
   return `<section class="ppl-card emp-card emp-onboarding" id="emp-onboarding">
       <div class="emp-section-head"><h2 class="emp-section-title">${escHtml(T.cardTitle)}</h2></div>

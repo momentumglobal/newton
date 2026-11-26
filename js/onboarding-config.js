@@ -21,19 +21,19 @@ CONFIG.ONBOARDING = {
   EMAIL_SEP:     ';',
   // Who can have a Talent Partner track plan: deployable staff at these levels. Future starters included.
   SCOPE_LEVELS:  ['TP', 'STP', 'PTP'],
-  // ChecklistTemplates.Variant for 'person' rows. The SDM track is v2. N-541 (ONB-D125–D131) adds Internal, the one track for every
-  // internal function (People.StaffType Internal). Flags per track: countersign = the CSD countersign closes the plan (false = the line
+  // ChecklistTemplates.Variant for 'person' rows. The SDM track is v2. N-541 (ONB-D132, superseding D125) adds one track per internal
+  // function: an entry with staffFunction is the track for internal staff (People.StaffType Internal) whose StaffFunction matches. v1 has
+  // Marketing; Sales and People are one entry each later, with no code change. Flags per track: countersign = the CSD countersign closes the plan (false = the line
   // manager's Day-30 sign-off closes it, read as Complete by onbDerivePlanStatus); roleplay = the Day-30 gate needs the role-play sign-off;
   // pdp = My Team shows the PDP goal-setting status. signoffKeys = the ItemKeys of the steps each sign-off ticks (ONB-D71); a blank or
-  // missing key means no linked step, never a failed sign-off. Chris sets the Internal day30 key once that step exists.
+  // missing key means no linked step, never a failed sign-off.
   TRACKS: [
     { key: 'TP',       label: 'Talent Partner', countersign: true,  roleplay: true,  pdp: true,
       signoffKeys: { roleplay: 'onb_tp_m05', day30: 'onb_tp_day30-signoff' } },
-    { key: 'Internal', label: 'Internal staff', countersign: false, roleplay: false, pdp: false,
-      signoffKeys: { day30: '' } },
+    { key: 'Marketing', label: 'Marketing', staffFunction: 'Marketing', countersign: false, roleplay: false, pdp: false,
+      signoffKeys: { day30: 'ck_mwxjsisl_5elj' } },
   ],
   DEFAULT_TRACK: 'TP',
-  INTERNAL_TRACK: 'Internal',
   // N-541 (ONB-D130): on a track with no CSD, CSD-owned steps (and People Ops steps while no people_ops user exists) belong to Admin.
   ADMIN_FALLBACK_LABEL: '{role} \u2014 Admin for now',
   // Step owners (ONB-D2). PeopleOps resolves to the joiner's CSD while no active people_ops user exists (ONB-D17).
@@ -84,7 +84,8 @@ CONFIG.ONBOARDING = {
   START_REASONS: {
     'off':             'Onboarding is switched Off (Config Panel → Onboarding).',
     'not-pilot':       'Onboarding is in Pilot and this person is not on the pilot list.',
-    'out-of-scope':    'Only active Talent Partners (TP, STP and PTP) and internal staff get an onboarding plan.',
+    'out-of-scope':    'Only active Talent Partners (TP, STP and PTP) and internal staff with an onboarding track get an onboarding plan.',
+    'no-track':        'There is no onboarding track for {function} yet.',   // N-541 (ONB-D133)
     'no-email':        'Add a unique work email to this person first.',
     'no-start-date':   'Set a start date first.',
     'too-late':        'Started more than {days} days ago. Onboarding plans are for new joiners only.',

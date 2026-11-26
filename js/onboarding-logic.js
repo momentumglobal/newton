@@ -14,7 +14,7 @@
 //            StartDate, buddy optional at start, plans only for new joiners (START_WINDOW_DAYS).
 //   ONB-D23..D27 (N-498): tick-box-only onboarding steps with a content link, every Guided step Required, decks hosted in
 //            the OnboardingContent library.
-//   ONB-D125..D131 (N-541): a second track, Internal (internal staff, onbTrackFor); a line manager with no People row resolves from the
+//   ONB-D125..D134 (N-541): one track per internal function (onbTrackFor, StaffFunction; Marketing in v1); a line manager with no People row resolves from the
 //            assignee directory (onbLineManager); tracks without a countersign close on the LM's Day-30 sign-off (onbDerivePlanStatus),
 //            and their CSD / People Ops steps fall back to Admin.
 //   ONB-D108..D118 (N-520): a step can be reassigned per plan (OnboardingStepAssignments, latest row wins); the assignee becomes the
@@ -48,12 +48,17 @@ function onbTrackDef(key) {
   return k ? (CONFIG.ONBOARDING.TRACKS.find(t => normChecklistKey(t.key) === k) || null) : null;
 }
 
-// N-541 (ONB-D126). The track a person's plan is on: active and real, then internal staff -> INTERNAL_TRACK, deployable at a SCOPE_LEVELS
-// level -> DEFAULT_TRACK, anyone else (SDM, CSD, external, placeholder, inactive) -> ''. No started check — pre-start joiners must be pickable.
+// N-541 (ONB-D126 / D132 / D133). The track a person's plan is on: active and real, then internal staff -> the track whose staffFunction is
+// their StaffFunction ('' while their function has none), deployable at a SCOPE_LEVELS level -> DEFAULT_TRACK, anyone else (SDM, CSD,
+// external, placeholder, inactive) -> ''. No started check — pre-start joiners must be pickable.
 function onbTrackFor(person) {
   const O = CONFIG.ONBOARDING;
   if (!person || person.IsPlaceholder || !spYesNo(person.IsActive, false)) return '';
-  if (isInternalStaff(person)) return O.INTERNAL_TRACK;
+  if (isInternalStaff(person)) {
+    const fn = String(person.StaffFunction == null ? '' : person.StaffFunction).trim();
+    const hit = fn ? O.TRACKS.find(t => t.staffFunction && t.staffFunction === fn) : null;
+    return hit ? hit.key : '';
+  }
   if (isDeployablePerson(person) && O.SCOPE_LEVELS.includes(person.Level)) return O.DEFAULT_TRACK;
   return '';
 }
@@ -342,12 +347,13 @@ function onbBuddyCandidates(people, joinerId, todayISO) {
 }
 
 // The text for a start-check reason (CONFIG.ONBOARDING.START_REASONS), {days} filled in.
-// N-541: {track} = the track's label (trackKey, default DEFAULT_TRACK).
-function onbReasonText(reason, trackKey = '') {
+// N-541: {track} = the track's label (trackKey, default DEFAULT_TRACK); {function} = the person's StaffFunction ('their function' when blank).
+function onbReasonText(reason, trackKey = '', fn = '') {
   const O = CONFIG.ONBOARDING;
   return String(O.START_REASONS[reason] || O.START_REASONS['out-of-scope'])
     .replace('{days}', String(O.START_WINDOW_DAYS))
-    .replace('{track}', onbTrackLabel(trackKey || O.DEFAULT_TRACK));
+    .replace('{track}', onbTrackLabel(trackKey || O.DEFAULT_TRACK))
+    .replace('{function}', String(fn || '').trim() || 'their function');
 }
 
 // Can "Start onboarding" be offered for this person? { ok, reason }. Reasons in this order: has-plan, off, not-pilot,
@@ -361,7 +367,10 @@ function onbStartCheck({ person = null, people = [], plans = [], templates = [],
   const m = onbNormaliseMode(mode);
   if (m === O.MODES[0]) return no('off');
   if (m === 'Pilot' && !onbPilotRows(people, pilot).some(p => String(p.id) === String(person.id))) return no('not-pilot');
-  if (!onbInScope(person)) return no('out-of-scope');
+  if (!onbInScope(person)) {
+    const internalActive = !person.IsPlaceholder && spYesNo(person.IsActive, false) && isInternalStaff(person);
+    return no(internalActive ? 'no-track' : 'out-of-scope');   // N-541 (ONB-D133): an internal function with no track yet
+  }
   const email = _onbEmail(person.WorkEmail);
   if (!email || !_onbUniqueRow(pdpEmailIndex(people), email)) return no('no-email');
   const start = spDateIn(person.StartDate) || '';

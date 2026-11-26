@@ -458,36 +458,42 @@ ASSERTIONS.push(
   },
 );
 
-// ── N-541 (ONB-10): the Internal track ──────────────────────────────────────────────────────────────────────────────
-// Mia Marketing (40): internal staff, starts 2026-11-25, reports to Eve Exec, who has a LeadershipAccess row and no People row.
+// ── N-541 (ONB-10): internal-function tracks (Marketing in v1) ──────────────────────────────────────────────────────────────────────────────
+// Mia Marketing (40): internal staff (StaffFunction Marketing), starts 2026-11-25, reports to Eve Exec, who has a LeadershipAccess row and no People row.
 function _n541Fx() {
   const x = _onbFx3();
   const f = x.f;
   const EXEC = 'eve.exec@mg.test';
-  const mia = f.P(40, 'Mia Marketing', '', { StaffType: CONFIG.STAFF_TYPE_INTERNAL, StartDate: '2026-11-25', ReportsTo: EXEC });
+  const mia = f.P(40, 'Mia Marketing', '', { StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: 'Marketing', StartDate: '2026-11-25', ReportsTo: EXEC });
   const people = x.people.concat([mia]);
   const directory = onbAssigneeDirectory({ people, userRows: [], leadershipRows: [{ id: '9', UserEmail: EXEC, UserName: 'Eve Exec' }] });
   const tpl = (key, extra) => Object.assign({
-    id: key, RecordType: 'person', Variant: 'Internal', Active: true, ItemKey: key, ItemLabel: 'Step ' + key, Section: 'Week 1', SectionOrder: 2, ItemOrder: 1,
+    id: key, RecordType: 'person', Variant: 'Marketing', Active: true, ItemKey: key, ItemLabel: 'Step ' + key, Section: 'Week 1', SectionOrder: 2, ItemOrder: 1,
     Owner: 'LM', DueOffsetDays: 1, StepMode: 'Guided', Required: true, LevelTag: '', ContentUrl: '', HelpText: '',
   }, extra);
   const templates = x.templates.concat([
     tpl('i_lm', { Owner: 'LM', DueOffsetDays: 1 }),
     tpl('i_csd', { Owner: 'CSD', ItemOrder: 2 }),
     tpl('i_po', { Owner: 'PeopleOps', ItemOrder: 3 }),
-    tpl('i_day30', { Owner: 'LM', Section: 'Day 30', SectionOrder: 3, DueOffsetDays: 29, ItemLabel: 'Day 30 sign-off' }),
+    tpl('ck_mwxjsisl_5elj', { Owner: 'LM', Section: 'Day 30', SectionOrder: 3, DueOffsetDays: 29, ItemLabel: 'Day 30 sign-off' }),
   ]);
-  const plan = { id: '41', Title: mia.WorkEmail, PersonID: 40, Track: 'Internal', Status: 'Active', BuddyEmail: '' };
+  const plan = { id: '41', Title: mia.WorkEmail, PersonID: 40, Track: 'Marketing', Status: 'Active', BuddyEmail: '' };
   const signed = (id, outcome) => ({ id: String(id), PlanID: 41, PersonID: 40, Kind: 'Day30LM', Outcome: outcome || 'Signed', SignedByEmail: EXEC, SignedAt: '2026-11-26' });
   return { x, f, EXEC, mia, people, directory, templates, plan, signed };
 }
 
 ASSERTIONS.push(
   {
-    name: 'N-541 AC1 onbTrackFor / onbInScope: internal staff -> Internal, TP grades -> TP, everyone else out',
+    name: 'N-541 AC1/AC21/AC24 onbTrackFor / onbInScope: internal staff -> their function\u2019s track (Marketing), TP grades -> TP, everyone else out',
     fn: function () {
       const n = _n541Fx(), f = n.f;
-      _assertEqual([n.mia, f.tp1, f.stp, f.ptp, f.sdm, f.csd].map(onbTrackFor), ['Internal', 'TP', 'TP', 'TP', '', ''], 'AC1 tracks by person');
+      _assertEqual([n.mia, f.tp1, f.stp, f.ptp, f.sdm, f.csd].map(onbTrackFor), ['Marketing', 'TP', 'TP', 'TP', '', ''], 'AC1 tracks by person');
+      const sales = Object.assign({}, n.mia, { StaffFunction: 'Sales' });
+      _assertEqual([onbTrackFor(sales), onbTrackFor(Object.assign({}, n.mia, { StaffFunction: '' })), onbTrackFor(Object.assign({}, n.mia, { StaffFunction: 'People' }))], ['', '', ''], 'AC21 no track yet for Sales, People or a blank function');
+      const reason = onbStartCheck({ person: sales, people: n.people.concat([sales]), plans: [], templates: n.templates, mode: 'On', pilot: [], todayISO: '2026-11-26', directory: n.directory }).reason;
+      _assertEqual([reason, onbReasonText(reason, '', 'Sales')], ['no-track', 'There is no onboarding track for Sales yet.'], 'AC23 no-track, named');
+      CONFIG.ONBOARDING.TRACKS.push({ key: 'Sales', label: 'Sales', staffFunction: 'Sales', countersign: false, roleplay: false, pdp: false, signoffKeys: {} });
+      try { _assertEqual(onbTrackFor(sales), 'Sales', 'AC24 a Sales track is one TRACKS entry'); } finally { CONFIG.ONBOARDING.TRACKS.pop(); }
       _assertEqual([
         onbTrackFor(Object.assign({}, n.mia, { IsActive: false })),
         onbTrackFor(Object.assign({}, n.mia, { IsPlaceholder: true })),
@@ -504,8 +510,8 @@ ASSERTIONS.push(
       _assertEqual(onbStartCheck(Object.assign({}, base, { directory: n.directory })), { ok: true, reason: '' }, 'AC2 ready with a directory-only line manager');
       _assertEqual(onbStartCheck(base).reason, 'no-line-manager', 'AC4 without the directory: no line manager');
       const noSteps = onbStartCheck(Object.assign({}, base, { directory: n.directory, templates: n.x.templates }));
-      _assertEqual([noSteps.reason, onbReasonText(noSteps.reason, onbTrackFor(n.mia)).includes('Internal staff')], ['no-steps', true], 'AC3 no-steps on her own track, named');
-      _assertEqual(onbStartFields({ person: n.mia, people: n.people, byEmail: 'admin@mg.test', todayISO: '2026-11-26' }).Track, 'Internal', 'AC2 the plan row is on Internal');
+      _assertEqual([noSteps.reason, onbReasonText(noSteps.reason, onbTrackFor(n.mia)).includes('Marketing')], ['no-steps', true], 'AC3 no-steps on her own track, named');
+      _assertEqual(onbStartFields({ person: n.mia, people: n.people, byEmail: 'admin@mg.test', todayISO: '2026-11-26' }).Track, 'Marketing', 'AC2 the plan row is on Marketing');
       _assertEqual(onbStartFields({ person: f.tp1, people: n.people, byEmail: 'admin@mg.test', todayISO: '2026-11-26' }).Track, 'TP', 'AC2 a TP plan stays TP');
       _assertEqual(onbLineManager(n.people, n.mia.WorkEmail, n.directory).EmployeeName, 'Eve Exec', 'AC4 directory-only line manager');
       _assertEqual(onbLineManager(n.people, f.tp1.WorkEmail, n.directory).id, f.sdm.id, 'AC4 ReportsTo on a People row: that row');
@@ -516,7 +522,7 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-541 AC5/AC6/AC7 an Internal plan: the directory-only LM is the line manager everywhere; CSD / People Ops steps are Admin’s',
+    name: 'N-541 AC5/AC6/AC7 a Marketing plan: the directory-only LM is the line manager everywhere; CSD / People Ops steps are Admin’s',
     fn: function () {
       const n = _n541Fx();
       const parties = onbPlanParties(n.plan, n.people, n.directory);
@@ -538,14 +544,13 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-541 AC8/AC9 Internal sign-offs: no role-play in the gate, only the Day-30 row, no countersign or PDP',
+    name: 'N-541 AC8/AC9 Marketing sign-offs: no role-play in the gate, only the Day-30 row, no countersign or PDP',
     fn: function () {
       const n = _n541Fx();
-      // i_day30 is an ordinary Required step until Chris sets the Internal day30 key, so it is ticked here.
-      const done = ['i_lm', 'i_csd', 'i_po', 'i_day30'].map(k => ({ id: 'r' + k, Title: 'person', RecordId: '40', ItemKey: k, Done: 'Yes', DoneByEmail: n.EXEC, DoneAt: '2026-11-26' }));
+      const done = ['i_lm', 'i_csd', 'i_po'].map(k => ({ id: 'r' + k, Title: 'person', RecordId: '40', ItemKey: k, Done: 'Yes', DoneByEmail: n.EXEC, DoneAt: '2026-11-26' }));
       const view = onbTeamModel({ plans: [n.plan], people: n.people, templates: n.templates, progressByPlan: { '41': done }, signoffs: [], email: n.EXEC, role: 'staff', todayISO: '2026-11-26', directory: n.directory });
       const row = view.rows[0];
-      _assertEqual([row.track, row.show], ['Internal', { roleplay: false, countersign: false, pdp: false }], 'AC9 the track hides role-play, countersign and PDP');
+      _assertEqual([row.track, row.show], ['Marketing', { roleplay: false, countersign: false, pdp: false }], 'AC9 the track hides role-play, countersign and PDP');
       _assertEqual([row.gate.ready, row.gate.roleplayMissing, row.signoff.day30lm.canSign, row.signoff.roleplay.canSign, row.signoff.csd.canSign], [true, false, true, false, false], 'AC8 gate ready without a role-play; only Day-30 can be signed');
       _assertEqual(view.totals.awaiting, 1, 'AC9 awaiting counts the Day-30 sign-off');
       const tp = onbDay30Gate({ model: { phases: [], track: 'TP' }, state: { roleplay: { signed: false } } });
@@ -553,22 +558,22 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-541 AC10/AC12/AC13 derived Complete: the Day-30 sign-off closes an Internal plan; the card offers Close plan record',
+    name: 'N-541 AC10/AC12/AC13 derived Complete: the Day-30 sign-off closes a Marketing plan; the card offers Close plan record',
     fn: function () {
       const n = _n541Fx();
       const tpPlan = { id: '30', PersonID: 30, Track: 'TP', Status: 'Active' };
       const tpSigned = { id: '5', PlanID: 30, Kind: 'Day30LM', Outcome: 'Signed' };
       const out = onbDerivePlanStatus([n.plan, tpPlan], [n.signed(1), tpSigned]);
-      _assertEqual([out[0].Status, out[0].StoredStatus, out[0].DerivedComplete, out[1] === tpPlan], ['Complete', 'Active', true, true], 'AC10 Internal reads Complete; TP untouched (same object)');
+      _assertEqual([out[0].Status, out[0].StoredStatus, out[0].DerivedComplete, out[1] === tpPlan], ['Complete', 'Active', true, true], 'AC10 Marketing reads Complete; TP untouched (same object)');
       _assertEqual(onbDerivePlanStatus([n.plan], [n.signed(1), n.signed(2, 'Withdrawn')])[0].Status, 'Active', 'AC10 the latest row wins: withdrawn = still open');
       _assertEqual(onbDerivePlanStatus([Object.assign({}, n.plan, { Status: 'Cancelled' })], [n.signed(1)])[0].Status, 'Cancelled', 'AC10 only an Active plan is derived');
-      _assertEqual([onbNeedsSignoffs([tpPlan]), onbNeedsSignoffs([tpPlan, n.plan])], [false, true], 'AC13 signoffs are read only when an Internal plan exists');
+      _assertEqual([onbNeedsSignoffs([tpPlan]), onbNeedsSignoffs([tpPlan, n.plan])], [false, true], 'AC13 signoffs are read only when a no-countersign plan exists');
       const derived = out[0];
       _assertEqual(Object.keys(onbCleanPlanFields(derived)).some(k => k === 'StoredStatus' || k === 'DerivedComplete'), false, 'the derived columns are never written');
       const rel = onbRelations({ plan: derived, people: n.people, email: n.EXEC, role: 'staff', directory: n.directory });
       const m = onbPlanModel({ plan: derived, people: n.people, templates: n.templates, progressRows: [], email: n.EXEC, role: 'staff', todayISO: '2026-11-26', directory: n.directory });
       _assertEqual([m.readOnly, m.phases.some(p => p.items.some(i => i.canTick || i.canReassign))], [true, false], 'AC10 closed: nothing to tick or reassign');
-      _assertEqual(onbSignoffRights({ relations: rel, planStatus: derived.Status, track: 'Internal' }).day30lm.canWithdraw, false, 'AC11 no withdraw once closed');
+      _assertEqual(onbSignoffRights({ relations: rel, planStatus: derived.Status, track: 'Marketing' }).day30lm.canWithdraw, false, 'AC11 no withdraw once closed');
       const state = onbCardState({ person: n.mia, people: n.people, plans: [derived], templates: n.templates, mode: 'On', pilot: [], todayISO: '2026-11-26', directory: n.directory });
       const html = onbCardHtml({ state, person: n.mia, buddies: [], summary: null, startedBy: '', startedOn: '', buddyEmail: '' });
       _assertEqual([state.kind, html.includes('onbCloseRecord'), html.includes(escHtml(CONFIG.ONBOARDING.TEXT.derivedNote))], ['derived', true, true], 'AC12 the card: note + Close plan record');
@@ -578,17 +583,11 @@ ASSERTIONS.push(
     name: 'N-541 AC14/AC15/AC16 sign-off step keys per track; Data Health finds a directory-only line manager',
     fn: function () {
       const n = _n541Fx();
-      const T = CONFIG.ONBOARDING.TRACKS.find(t => t.key === 'Internal');
-      _assertEqual([onbSignoffStepKind({ ItemKey: 'onb_tp_m05', Variant: 'TP' }), onbSignoffStepKind({ ItemKey: 'onb_tp_m05', Variant: 'Internal' }), onbSignoffStepKind({ ItemKey: 'i_day30', Variant: 'Internal' })], ['roleplay', '', ''], 'AC15 TP keys on TP only; blank Internal key matches nothing');
-      _assertEqual(onbTrackSignoffKey('Internal', 'day30'), '', 'AC14 blank Internal key = no linked step');
-      const keep = T.signoffKeys.day30;
-      try {
-        T.signoffKeys.day30 = 'i_day30';
-        _assertEqual([onbSignoffStepKind({ ItemKey: 'i_day30', Variant: 'Internal' }), onbTrackSignoffKey('Internal', 'day30')], ['day30', 'i_day30'], 'AC14/AC15 once set, the Internal Day-30 step is linked');
-      } finally { T.signoffKeys.day30 = keep; }
+      _assertEqual([onbSignoffStepKind({ ItemKey: 'onb_tp_m05', Variant: 'TP' }), onbSignoffStepKind({ ItemKey: 'onb_tp_m05', Variant: 'Marketing' }), onbSignoffStepKind({ ItemKey: 'ck_mwxjsisl_5elj', Variant: 'Marketing' }), onbSignoffStepKind({ ItemKey: 'ck_mwxjsisl_5elj', Variant: 'TP' })], ['roleplay', '', 'day30', ''], 'AC15 each track\u2019s keys on its own steps only');
+      _assertEqual([onbTrackSignoffKey('Marketing', 'day30'), onbTrackSignoffKey('Marketing', 'roleplay')], ['ck_mwxjsisl_5elj', ''], 'AC14 Marketing Day-30 step linked; no role-play key');
       const noLm = d => onbCheckPlans({ plans: [n.plan], people: n.people, templates: n.templates, directory: d }).find(c => c.key === 'no-line-manager').count;
       _assertEqual([noLm(n.directory), noLm(null)], [0, 1], 'AC16 noLm passes with the directory');
-      _assertEqual(onbCheckPlans({ plans: [Object.assign({}, n.plan, { Track: 'SDM' })], people: n.people, templates: n.templates }).find(c => c.key === 'unknown-values').count, 1, 'AC16 an unknown track still flags');
+      _assertEqual(onbCheckPlans({ plans: [Object.assign({}, n.plan, { Track: 'Internal' })], people: n.people, templates: n.templates }).find(c => c.key === 'unknown-values').count, 1, 'AC16 an unknown track (the retired Internal key) flags');
     },
   },
   {

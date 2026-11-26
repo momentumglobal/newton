@@ -167,7 +167,7 @@ async function startOnboardingPlan({ personId, buddyEmail = '' } = {}) {
   const todayISO = localDayISO();
   const directory = await getOnboardingDirectory(people);   // N-541 (ONB-D127): strict; a line manager with no People row
   const chk = onbStartCheck({ person, people, plans, templates, mode: sw.mode, pilot: sw.pilot, todayISO, directory });
-  if (!chk.ok) throw new Error(onbReasonText(chk.reason, onbTrackFor(person)));
+  if (!chk.ok) throw new Error(onbReasonText(chk.reason, onbTrackFor(person), person && person.StaffFunction));
   const fields = onbStartFields({ person, people, buddyEmail, byEmail: getCurrentUser()?.email || '', todayISO });
   const res = await createItem(CONFIG.ONBOARDING.PLAN_LIST, fields);
   return { id: res && res.id ? String(res.id) : null };

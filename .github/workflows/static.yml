@@ -49,19 +49,13 @@ jobs:
         run: NEWTON_TZ=UTC node tests/run.js
       - name: Test — America/New_York (behind UTC — the N-130 class)
         run: NEWTON_TZ=America/New_York node tests/run.js
-      # Single deploy job since we're just deploying
-  deploy:
+      # N-538: build and deploy are separate jobs (the standard Pages pattern), so
+  # the artifact upload finishes before deploy-pages looks for it. Hypothesis
+  # fix for the intermittent "Found 0 artifact(s)" deploy fail (8 Oct, 20 Nov,
+  # 26 Nov 2026); it was a back-to-back upload + deploy in one job before.
+  # No job-level permissions here: build inherits the top-level block.
+  build:
     needs: test
-    # Job-level permissions REPLACE the top-level block for this job (they
-    # don't merge) — pages/id-token must be repeated even though this job
-    # no longer needs contents: write (N-220 removed the last-deploy tag
-    # push, its only user).
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -98,6 +92,21 @@ jobs:
         with:
           # Upload entire repository
           path: '.'
+
+  deploy:
+    needs: build
+    # Job-level permissions REPLACE the top-level block for this job (they
+    # don't merge) — pages/id-token must be repeated. No contents: this job
+    # checks nothing out (N-220 removed the last-deploy tag push; N-538 moved
+    # the checkout into build).
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

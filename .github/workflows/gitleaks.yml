@@ -20,7 +20,7 @@ jobs:
       # fetch-depth: 0 = every commit. The default shallow checkout would scan
       # one commit and report a false clean.
       - name: Checkout (full history)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Install gitleaks (pinned, checksum-verified)

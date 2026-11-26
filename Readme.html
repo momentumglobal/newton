@@ -1677,6 +1677,14 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">Deploy workflows moved to Node 24 actions (N-539)</div>
+        <ul>
+          <li><code>static.yml</code> and <code>gitleaks.yml</code> now use the Node 24 versions of the GitHub actions they call: <code>checkout</code> v5, <code>setup-node</code> v5, <code>configure-pages</code> v6 and <code>upload-pages-artifact</code> v5 (<code>deploy-pages</code> v5 already was). This clears the Node 20 deprecation warning on deploy. One side effect: <code>.gitleaksignore</code> is no longer published to the live site. No app code changed.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
         <div class="changelog-title">Pages deploy split into build and deploy jobs (N-538)</div>
         <ul>
           <li><code>.github/workflows/static.yml</code> now builds and uploads the Pages artifact in a <code>build</code> job and publishes it from a separate <code>deploy</code> job (<code>test</code> &rarr; <code>build</code> &rarr; <code>deploy</code>). It targets the intermittent <code>Found 0 artifact(s)</code> deploy fail seen on 8 Oct, 20 Nov and 26 Nov 2026. This is a hypothesis fix, not confirmed; whether the fail recurs is recorded when the task closes. No app code changed.</li>

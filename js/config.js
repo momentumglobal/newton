@@ -1245,9 +1245,9 @@ const CONFIG = {
 
   // Monthly estimated revenue bands — Sales > Revenue Tracking chart
   REVENUE_THRESHOLDS: {
-  green: 225000,  // >= £225k / month = healthy
-  amber: 200000,  // >= £200k / month = watch
-  // < £200k = red
+  green: 185000,  // >= £185k / month = healthy
+  amber: 160000,  // >= £160k / month = watch
+  // < £160k = red
 },
 
   // CoE Hiring Plan — default phase lengths in weeks.

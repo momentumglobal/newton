@@ -344,8 +344,8 @@ ASSERTIONS.push(
       _assertEqual([_onbrTypes(r), r.send[0].link], [['onbDue:1'], R.LINKS.TEAM], 'AC14 the assignee is, with a link to My Team');
       const ian = x.ian.WorkEmail;
       const acc = (a, mode) => onbAccess({ mode: mode || 'On', pilot: [], people: x.people, plans: [x.plan], email: ian, role: 'staff', assignments: a });
-      _assertEqual([acc([]).state, acc([x.row(1, 'w2', ian)]).state, acc([x.row(1, 'w2', ian)]).reason, acc([x.row(1, 'w2', ian)], 'Pilot').state], ['none', 'live', 'plan', 'live'], 'AC15 internal staff assignee is live in On and Pilot');
-      _assertEqual(acc([x.row(1, 'w2', ian), x.row(2, 'w2', '')]).state, 'none', 'AC15 handed back: none again');
+      _assertEqual([acc([], 'Pilot').state, acc([x.row(1, 'w2', ian)], 'Pilot').state, acc([x.row(1, 'w2', ian)], 'Pilot').reason, acc([]).reason], ['none', 'live', 'plan', 'in-scope'], 'AC15 an assignment opens the gate in Pilot; N-541 internal staff are in scope in On');
+      _assertEqual(acc([x.row(1, 'w2', ian), x.row(2, 'w2', '')], 'Pilot').state, 'none', 'AC15 handed back: none again (Pilot)');
       const chk = a => onbCheckPlans({ plans: [x.plan], people: x.people, templates: x.templates, assignments: a });
       _assertEqual(onbCheckPlans({ plans: [x.plan], people: x.people, templates: x.templates }).length, 8, 'AC16 no assignments passed: the eight N-497 checks');
       const c9 = a => chk(a).find(c => c.key === 'assignee-unresolved');

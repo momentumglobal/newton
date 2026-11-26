@@ -57,7 +57,7 @@ function onbReminderPlan(opts) {
   const where = { own: false, team: false, buddy: false };
   const aIndex = onbAssignmentIndex(o.assignments || []);   // N-520: a reassigned step reminds its assignee, not its template owner
   onbReminderPlans({ plans: o.plans, people: o.people, email: me, peopleOpsActive: o.peopleOpsActive, assignments: aIndex, directory: o.directory }).forEach(({ plan, relations }) => {
-    const parties = onbPlanParties(plan, o.people);
+    const parties = onbPlanParties(plan, o.people, o.directory || null);   // N-541: a directory-only line manager is reminded too
     const startDate = parties.employee ? (spDateIn(parties.employee.StartDate) || '') : '';
     const progress = resolveChecklistProgress((o.progressByPlan || {})[String(plan.id)] || []);
     activeChecklistItems(o.templates, CONFIG.ONBOARDING.RECORD_TYPE, plan.Track).forEach(step => {

@@ -7,7 +7,7 @@
 //
 // The rules are pure in onboarding-logic.js (onbCardState, onbStartCheck, onbBuddyCandidates, onbPlanSummary); the writes are
 // in api-onboarding.js (each re-checks and refuses non-admins); every message and number is CONFIG.ONBOARDING.TEXT /
-// START_REASONS. This file holds markup and the four actions only: declarations at load, DOM only inside the functions.
+// START_REASONS. This file holds markup and the five actions only (N-541 adds Close plan record): declarations at load, DOM only inside the functions.
 // people.html only; never mobile.html, Newton for Claude or the Command Bar.
 
 let _onbCardCtx = null;   // { person, people, token } of the open record, so an action can redraw the card
@@ -47,6 +47,7 @@ function onbCardHtml(m) {
       : escHtml(T.noSteps);
     body = `<dl class="emp-list">
         ${_onbRowHtml(T.status, escHtml(O.PLAN_ACTIVE))}
+        ${_onbRowHtml(T.track, escHtml(onbTrackLabel(st.plan.Track)))}
         ${_onbRowHtml(T.started, escHtml(m.startedBy || '') + (m.startedOn ? ' · ' + escHtml(m.startedOn) : ''))}
         ${_onbRowHtml(T.buddyLabel, `${_onbBuddySelectHtml(m.buddies || [], m.buddyEmail)} <button type="button" class="btn-secondary"${act('onbChangeBuddy', String(st.plan.id))}>${escHtml(T.changeBuddy)}</button>`)}
         ${_onbRowHtml(T.progress, progress)}
@@ -57,8 +58,11 @@ function onbCardHtml(m) {
       <div class="emp-actions"><button type="button" class="btn-primary"${act('onbRestartPlan', String(st.plan.id))}>${escHtml(T.restart)}</button></div>`;
   } else if (st.kind === 'complete') {
     body = `<p class="ppl-muted-note">${escHtml(T.completeNote)}</p>`;
+  } else if (st.kind === 'derived') {   // N-541 (ONB-D129): closed by the LM's Day-30 sign-off, stored Status still Active
+    body = `<p class="ppl-muted-note">${escHtml(T.derivedNote)}</p>
+      <div class="emp-actions"><button type="button" class="btn-secondary"${act('onbCloseRecord', String(st.plan.id))}>${escHtml(T.closeRecord)}</button></div>`;
   } else {
-    body = `<p class="ppl-muted-note">${escHtml(onbReasonText(st.reason))}</p>`;
+    body = `<p class="ppl-muted-note">${escHtml(onbReasonText(st.reason, onbTrackFor(m.person)))}</p>`;
   }
   return `<section class="ppl-card emp-card emp-onboarding" id="emp-onboarding">
       <div class="emp-section-head"><h2 class="emp-section-title">${escHtml(T.cardTitle)}</h2></div>
@@ -81,12 +85,13 @@ async function onbLoadPlanCard(person, people, token, { fresh = false } = {}) {
   const slot = _onbSlot(token);
   if (!slot) return;
   try {
-    if (fresh) [O.PLAN_LIST, 'ChecklistProgress', 'ChecklistTemplates'].forEach(_cacheInvalidate);
-    const [plans, templates, sw] = await Promise.all([
+    if (fresh) [O.PLAN_LIST, O.SIGNOFF.LIST, 'ChecklistProgress', 'ChecklistTemplates'].forEach(_cacheInvalidate);
+    const [plans, templates, sw, directory] = await Promise.all([
       getOnboardingPlans({ personId: person.id }), getChecklistTemplates(O.RECORD_TYPE), readOnboardingSwitch(),
+      _onbDirectoryOrPeople(people),   // N-541 (ONB-D127): a line manager with no People row
     ]);
     const todayISO = localDayISO();
-    const state = onbCardState({ person, people, plans, templates, mode: sw.mode, pilot: sw.pilot, todayISO });
+    const state = onbCardState({ person, people, plans, templates, mode: sw.mode, pilot: sw.pilot, todayISO, directory });
     const m = { state, person, buddies: onbBuddyCandidates(people, person.id, todayISO), summary: null, startedBy: '', startedOn: '', buddyEmail: '' };
     if (state.kind === 'active') {
       const plan = state.plan;
@@ -153,9 +158,15 @@ async function onbRestartPlan(planId) {
   await _onbRun(() => restartOnboardingPlan(planId), CONFIG.ONBOARDING.TEXT.restartOk);
 }
 
+// N-541 (ONB-D129): file a plan the line manager's Day-30 sign-off closed.
+async function onbCloseRecord(planId) {
+  await _onbRun(() => closeOnboardingPlanRecord(planId), CONFIG.ONBOARDING.TEXT.closeOk);
+}
+
 registerActions({
   onbStartPlan,
   onbChangeBuddy,
   onbCancelPlan,
   onbRestartPlan,
+  onbCloseRecord,
 });

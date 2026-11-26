@@ -25,7 +25,7 @@ ASSERTIONS.push(
       _assertEqual(O.MODES, ['Off', 'Pilot', 'On'], 'AC1 modes, Off first');
       _assertEqual(O.SETTINGS, { MODE: 'OnboardingMode', PILOT: 'OnboardingPilot' }, 'AC1 AppSettings columns');
       _assertEqual(O.OWNERS.map(o => o.key), ['Employee', 'LM', 'CSD', 'PeopleOps', 'Ops', 'Buddy'], 'AC1 owner keys');
-      _assertEqual(O.TRACKS.map(t => t.key), [O.DEFAULT_TRACK], 'AC1 one track (TP), SDM is v2');
+      _assertEqual(O.TRACKS.map(t => t.key), [O.DEFAULT_TRACK, O.INTERNAL_TRACK], 'AC1 tracks TP and (N-541) Internal; SDM is v2');
       _assertEqual(O.RECORD_TYPE, 'person', 'AC1 record type');
       _assertEqual(CONFIG.CHECKLISTS.RECORD_TYPES, ['project', 'role', 'person'], 'AC1 RECORD_TYPES');
       _assertEqual(CONFIG.CHECKLISTS.SWITCH_TYPES, ['project', 'role'], 'AC1 SWITCH_TYPES');
@@ -79,7 +79,7 @@ ASSERTIONS.push(
         f.P(26, 'No Mail', 'TP', { WorkEmail: '' }),
       ];
       const c = onbPilotCandidates(f.all.concat(extra));
-      _assertEqual(c.map(x => x.name), ['Deep Tp', 'Fay Future', 'Pat Ptp', 'Stu Stp', 'Tia Tp', 'Tom Tp'], 'AC7 no CSD / SDM / internal / placeholder / inactive / duplicate / no email; future starter in');
+      _assertEqual(c.map(x => x.name), ['Deep Tp', 'Fay Future', 'Ian Internal', 'Pat Ptp', 'Stu Stp', 'Tia Tp', 'Tom Tp'], 'AC7 no CSD / SDM / placeholder / inactive / duplicate / no email; future starter in; N-541 internal staff in');
       const fay = c.find(x => x.name === 'Fay Future');
       _assertEqual([fay.id, fay.level, fay.email, fay.startDate], ['22', 'TP', 'fay.future@mg.test', '2099-03-01'], 'AC7 candidate shape');
       _assertEqual(onbPilotRows(f.all.concat(extra), 'TIA.TP@mg.test; sam.sdm@mg.test;dup@mg.test').map(p => p.EmployeeName), ['Tia Tp'], 'pilot rows: in scope and unique only');
@@ -325,7 +325,7 @@ ASSERTIONS.push(
         f.P(36, 'Fay Future', 'TP', { StartDate: '2026-12-01' }),
       ]);
       const c = onbBuddyCandidates(extra, nina.id, _ONB_TODAY);
-      _assertEqual(c.map(x => x.name), ['Deep Tp', 'Pat Ptp', 'Stu Stp', 'Tia Tp', 'Tom Tp'], 'no joiner, CSD, SDM, internal, placeholder, inactive, duplicate or future starter');
+      _assertEqual(c.map(x => x.name), ['Deep Tp', 'Ian Internal', 'Pat Ptp', 'Stu Stp', 'Tia Tp', 'Tom Tp'], 'no joiner, CSD, SDM, placeholder, inactive, duplicate or future starter; N-541 started internal staff in');
       _assertEqual(Object.keys(c[0]).sort(), ['email', 'id', 'level', 'name', 'startDate'], 'candidate shape');
     },
   },
@@ -461,12 +461,12 @@ ASSERTIONS.push(
       const off = html({}, { mode: 'Off' });
       _assertEqual(off.includes(CONFIG.ONBOARDING.START_REASONS.off) && !off.includes('<button'), true, 'off: a note, no button');
       const blocked = html({}, { templates: [] });
-      _assertEqual(blocked.includes(CONFIG.ONBOARDING.START_REASONS['no-steps']) && !blocked.includes('<button'), true, 'blocked: its reason, no button');
+      _assertEqual(blocked.includes(escHtml(onbReasonText('no-steps', 'TP'))) && !blocked.includes('<button'), true, 'blocked: its reason (N-541: {track} filled), no button');
       [ready, active, cancelled, off].forEach(h => _assertEqual(/\bon(click|change|input)=|style="/.test(h), false, 'no inline handlers or styles'));
       const src = _onbSrc('onboarding-plan-ui.js');
       _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(src), false, 'no hex in JS');
       _assertEqual(/act(On)?\([^)]*\)\.trim\(\)/.test(src), false, 'act() keeps its leading space');
-      _assertEqual(/registerActions\(\{\s*onbStartPlan,\s*onbChangeBuddy,\s*onbCancelPlan,\s*onbRestartPlan,?\s*\}\)/.test(src), true, 'four actions registered once');
+      _assertEqual(/registerActions\(\{\s*onbStartPlan,\s*onbChangeBuddy,\s*onbCancelPlan,\s*onbRestartPlan,\s*onbCloseRecord,?\s*\}\)/.test(src), true, 'five actions registered once (N-541 adds onbCloseRecord)');
     },
   },
   {
@@ -541,7 +541,7 @@ ASSERTIONS.push(
       _assertEqual(onbStepFromRow({ DueOffsetDays: '7' }).dueOffsetDays, 7, 'AC11 numeric string offset');
       _assertEqual([onbDueText(0), onbDueText(3), onbDueText(-5), onbDueText(-1), onbDueText(null), onbDueText(2.5), onbDueText('')],
         ['Day 1 (start day)', 'Day 4', '5 days before start', '1 day before start', '', '', ''], 'AC5 due text');
-      _assertEqual(onbTrackKeys(), ['TP'], 'tracks');
+      _assertEqual(onbTrackKeys(), ['TP', 'Internal'], 'tracks (N-541 adds Internal)');
       _assertEqual([onbTrackLabel('TP'), onbTrackLabel('tp'), onbTrackLabel('XX')], ['Talent Partner', 'Talent Partner', 'XX'], 'track labels');
     },
   },

@@ -46,12 +46,20 @@ async function writeOnboardingSwitch({ mode, pilot } = {}) {
 }
 
 // OnboardingPlans rows; for one person when personId is given (indexed PersonID, server-side).
+// N-541 (ONB-D129): the only plan reader, so it returns plans as everyone reads them (onbDerivePlanStatus). When a plan is on a track with no
+// countersign, OnboardingSignoffs is read too (30 s cache, like the plans; write paths invalidate both) and a failed read throws: a plan the
+// line manager has closed must never read as open. No such plan, no extra read.
 async function getOnboardingPlans({ personId = null } = {}) {
   const list = CONFIG.ONBOARDING.PLAN_LIST;
-  if (personId === null || personId === undefined || personId === '') return getItems(list);
-  const n = Number(personId);
-  if (!Number.isInteger(n) || n <= 0) throw new Error(`Invalid People id: ${personId}`);
-  return getItems(list, `fields/PersonID eq ${n}`);
+  let rows;
+  if (personId === null || personId === undefined || personId === '') rows = await getItems(list);
+  else {
+    const n = Number(personId);
+    if (!Number.isInteger(n) || n <= 0) throw new Error(`Invalid People id: ${personId}`);
+    rows = await getItems(list, `fields/PersonID eq ${n}`);
+  }
+  if (!onbNeedsSignoffs(rows)) return rows;
+  return onbDerivePlanStatus(rows, await getItems(CONFIG.ONBOARDING.SIGNOFF.LIST));
 }
 
 // N-520 (ONB-D112). Every OnboardingStepAssignments row, read fresh. A failed read throws: the write paths must never treat a failed read
@@ -135,12 +143,13 @@ async function _onbPlanWriteGate() {
 }
 
 function _onbDropCaches() {
-  [CONFIG.ONBOARDING.PLAN_LIST, 'People', 'ChecklistTemplates', 'ChecklistProgress', CONFIG.ONBOARDING.ASSIGN.LIST].forEach(_cacheInvalidate);
+  [CONFIG.ONBOARDING.PLAN_LIST, 'People', 'ChecklistTemplates', 'ChecklistProgress', CONFIG.ONBOARDING.ASSIGN.LIST, CONFIG.ONBOARDING.SIGNOFF.LIST].forEach(_cacheInvalidate);
 }
 
 // One plan row by id, fresh. Throws when it is gone.
 async function _onbPlanById(planId) {
   _cacheInvalidate(CONFIG.ONBOARDING.PLAN_LIST);
+  _cacheInvalidate(CONFIG.ONBOARDING.SIGNOFF.LIST);   // N-541: the derived status is fresh too
   const rows = await getOnboardingPlans();
   const plan = rows.find(p => String(p.id) === String(planId));
   if (!plan) throw new Error('That onboarding plan no longer exists. Refresh the page.');
@@ -156,8 +165,9 @@ async function startOnboardingPlan({ personId, buddyEmail = '' } = {}) {
   ]);
   const person = people.find(p => !p.IsPlaceholder && String(p.id) === String(personId)) || null;
   const todayISO = localDayISO();
-  const chk = onbStartCheck({ person, people, plans, templates, mode: sw.mode, pilot: sw.pilot, todayISO });
-  if (!chk.ok) throw new Error(onbReasonText(chk.reason));
+  const directory = await getOnboardingDirectory(people);   // N-541 (ONB-D127): strict; a line manager with no People row
+  const chk = onbStartCheck({ person, people, plans, templates, mode: sw.mode, pilot: sw.pilot, todayISO, directory });
+  if (!chk.ok) throw new Error(onbReasonText(chk.reason, onbTrackFor(person)));
   const fields = onbStartFields({ person, people, buddyEmail, byEmail: getCurrentUser()?.email || '', todayISO });
   const res = await createItem(CONFIG.ONBOARDING.PLAN_LIST, fields);
   return { id: res && res.id ? String(res.id) : null };
@@ -173,7 +183,7 @@ async function setOnboardingBuddy(planId, buddyEmail) {
     _cacheInvalidate('People');
     const people = await getPeople(false);
     if (!onbBuddyCandidates(people, plan.PersonID, localDayISO()).some(c => c.email === buddy)) {
-      throw new Error('That buddy cannot be picked: they are not an active Talent Partner who has started.');
+      throw new Error(CONFIG.ONBOARDING.TEXT.buddyRefused);
     }
   }
   await updateItem(CONFIG.ONBOARDING.PLAN_LIST, plan.id, onbCleanPlanFields({ BuddyEmail: buddy }));
@@ -195,8 +205,17 @@ async function restartOnboardingPlan(planId) {
   _cacheInvalidate('People');
   const people = await getPeople(false);
   const person = people.find(p => !p.IsPlaceholder && String(p.id) === String(plan.PersonID));
-  if (!person || !onbInScope(person)) throw new Error('This person is no longer an active Talent Partner, so the plan cannot be restarted.');
+  if (!person || !onbInScope(person)) throw new Error('This person is no longer in onboarding scope, so the plan cannot be restarted.');
   await updateItem(CONFIG.ONBOARDING.PLAN_LIST, plan.id, onbCleanPlanFields({ Status: CONFIG.ONBOARDING.PLAN_ACTIVE }));
+}
+
+// N-541 (ONB-D129). "Close plan record": a plan the line manager's Day-30 sign-off closed (read as Complete, stored Active) gets its stored
+// Status set to Complete. Admin only, fresh read; refused for any other plan.
+async function closeOnboardingPlanRecord(planId) {
+  await _onbPlanWriteGate();
+  const plan = await _onbPlanById(planId);
+  if (plan.DerivedComplete !== true) throw new Error('Only a plan closed by the line manager\u2019s Day-30 sign-off can be closed here.');
+  await updateItem(CONFIG.ONBOARDING.PLAN_LIST, plan.id, onbCleanPlanFields({ Status: CONFIG.ONBOARDING.PLAN_STATUSES[1] }));
 }
 
 // The inputs for the Data Health "Onboarding plans" checks (onbCheckPlans). People includes inactive rows.
@@ -296,7 +315,7 @@ async function reassignOnboardingStep({ planId, itemKey, assigneeEmail = '' } = 
   if (plan.Status !== O.PLAN_ACTIVE) throw new Error(A.TEXT.reasons.closed);
   const key = String(itemKey == null ? '' : itemKey).trim();
   const step = key ? activeChecklistItems(templates, O.RECORD_TYPE, plan.Track).find(t => String(t.ItemKey == null ? '' : t.ItemKey).trim() === key) : null;
-  const parties = onbPlanParties(plan, people);
+  const parties = onbPlanParties(plan, people, directory);   // N-541: a directory-only line manager is a step's original owner
   const startDate = parties.employee ? (spDateIn(parties.employee.StartDate) || '') : '';
   const today = localDayISO();
   if (!step || !onbStepVisible({ step, relations: rel, startDate, todayISO: today })) throw new Error('That step is not part of this plan.');

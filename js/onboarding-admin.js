@@ -20,10 +20,10 @@ const _ONBA_MODE_TEXT = {
 };
 
 // Line managers and CSDs who join the pilot automatically, by name, from the People rows.
-function _onbaReviewerNames(people, rows) {
+function _onbaReviewerNames(people, rows, directory = null) {
   const names = new Set();
   rows.forEach(p => {
-    const parties = onbPlanParties({ PersonID: p.id }, people);
+    const parties = onbPlanParties({ PersonID: p.id }, people, directory);   // N-541: a line manager with no People row
     if (parties.lineManager) names.add(parties.lineManager.EmployeeName || '');
     if (parties.csd) names.add(parties.csd.EmployeeName || '');
   });
@@ -62,7 +62,7 @@ async function buildOnboardingTab() {
   const known = new Set(candidates.map(c => c.email));
   const selected = new Set(sw.pilot);
   const unresolved = sw.pilot.filter(e => !known.has(e));
-  const reviewers = _onbaReviewerNames(people, onbPilotRows(people, sw.pilot));
+  const reviewers = _onbaReviewerNames(people, onbPilotRows(people, sw.pilot), await _onbDirectoryOrPeople(people));
 
   const modeRadios = CONFIG.ONBOARDING.MODES.map(m => `
           <label class="pdp-admin-opt">

@@ -14,6 +14,9 @@
 //            StartDate, buddy optional at start, plans only for new joiners (START_WINDOW_DAYS).
 //   ONB-D23..D27 (N-498): tick-box-only onboarding steps with a content link, every Guided step Required, decks hosted in
 //            the OnboardingContent library.
+//   ONB-D125..D131 (N-541): a second track, Internal (internal staff, onbTrackFor); a line manager with no People row resolves from the
+//            assignee directory (onbLineManager); tracks without a countersign close on the LM's Day-30 sign-off (onbDerivePlanStatus),
+//            and their CSD / People Ops steps fall back to Admin.
 //   ONB-D108..D118 (N-520): a step can be reassigned per plan (OnboardingStepAssignments, latest row wins); the assignee becomes the
 //            step's owner for the chip, My actions, reminders and ticking. Every assignments param is optional: without it, nothing changes.
 // Callers pass the EFFECTIVE (Ghost-aware) email and role, as PDP does.
@@ -39,12 +42,36 @@ function onbOwnerLabel(key) {
   return hit ? hit.label : '';
 }
 
-// Who can be a pilot joiner / have a TP-track plan: active, real, deployable, a SCOPE_LEVELS level.
-// No started check — pre-start joiners must be pickable.
+// N-541: a track's TRACKS entry (or null). Keys compare case-insensitively, as onbTrackLabel.
+function onbTrackDef(key) {
+  const k = normChecklistKey(key);
+  return k ? (CONFIG.ONBOARDING.TRACKS.find(t => normChecklistKey(t.key) === k) || null) : null;
+}
+
+// N-541 (ONB-D126). The track a person's plan is on: active and real, then internal staff -> INTERNAL_TRACK, deployable at a SCOPE_LEVELS
+// level -> DEFAULT_TRACK, anyone else (SDM, CSD, external, placeholder, inactive) -> ''. No started check — pre-start joiners must be pickable.
+function onbTrackFor(person) {
+  const O = CONFIG.ONBOARDING;
+  if (!person || person.IsPlaceholder || !spYesNo(person.IsActive, false)) return '';
+  if (isInternalStaff(person)) return O.INTERNAL_TRACK;
+  if (isDeployablePerson(person) && O.SCOPE_LEVELS.includes(person.Level)) return O.DEFAULT_TRACK;
+  return '';
+}
+
+// Who can be a pilot joiner / have a plan: anyone with a track.
 function onbInScope(person) {
-  if (!person || person.IsPlaceholder || !spYesNo(person.IsActive, false)) return false;
-  if (!isDeployablePerson(person)) return false;
-  return CONFIG.ONBOARDING.SCOPE_LEVELS.includes(person.Level);
+  return !!onbTrackFor(person);
+}
+
+// N-541 (ONB-D127). The line manager for a People email: the People row ReportsTo names, as pdpResolveIdentity. Only when ReportsTo is on
+// no People row at all does a directory (onbAssigneeDirectory) entry stand in: a single entry with that email from UserAssignments or
+// LeadershipAccess. A People row always wins (ONB-D120); the CSD never comes from the directory.
+function onbLineManager(people, email, directory = null) {
+  const id = pdpResolveIdentity(people, email);
+  if (id.lineManager || !id.flags.lineManagerNotInPeople || !Array.isArray(directory) || !id.me) return id.lineManager || null;
+  const rt = _onbEmail(id.me.ReportsTo);
+  const hits = directory.filter(d => d && d.DirectorySource && _onbEmail(d.WorkEmail) === rt);
+  return hits.length === 1 ? hits[0] : null;
 }
 
 function _onbUniqueRow(index, email) {
@@ -69,7 +96,8 @@ function onbPilotRows(people, pilot) {
 }
 
 // { employee, lineManager, csd, buddy } People rows (or null) for one OnboardingPlans row.
-function onbPlanParties(plan, people) {
+// N-541: directory (optional) lets a line manager with no People row resolve (onbLineManager); without it, People only.
+function onbPlanParties(plan, people, directory = null) {
   const out = { employee: null, lineManager: null, csd: null, buddy: null };
   if (!plan) return out;
   const pid = String(plan.PersonID == null ? '' : plan.PersonID).trim();
@@ -77,7 +105,7 @@ function onbPlanParties(plan, people) {
   if (out.employee) {
     const id = pdpResolveIdentity(people, out.employee.WorkEmail);
     if (id.me && String(id.me.id) === String(out.employee.id)) {
-      out.lineManager = id.lineManager;
+      out.lineManager = id.lineManager || (directory ? onbLineManager(people, out.employee.WorkEmail, directory) : null);
       out.csd = id.csd;
     }
   }
@@ -94,7 +122,7 @@ function onbRelations({ plan = null, people = [], email = '', role = '', peopleO
   if (role === R.PEOPLE_OPS && peopleOpsActive === true) rel.add('peopleops');
   const me = _onbEmail(email);
   if (!plan || !me) return rel;
-  const parties = onbPlanParties(plan, people);
+  const parties = onbPlanParties(plan, people, directory);
   const employeeEmail = parties.employee ? _onbEmail(parties.employee.WorkEmail) : _onbEmail(plan.Title);
   if (employeeEmail && employeeEmail === me) rel.add('employee');
   if (parties.lineManager && _onbEmail(parties.lineManager.WorkEmail) === me) rel.add('lm');
@@ -108,13 +136,19 @@ function onbRelations({ plan = null, people = [], email = '', role = '', peopleO
 // once a people_ops user exists). A blank or unknown owner is DEFAULT_OWNER.
 // N-520 (ONB-D113): assignee = the People row the step is reassigned to (onbStepAssignee), or null. With one, person is the assignee and
 // the result adds reassigned: true plus originalPerson / originalLabel (the template owner as above); without one the shape is unchanged.
-function onbStepOwner({ step = null, parties = {}, peopleOpsActive = false, assignee = null } = {}) {
+// N-541 (ONB-D130): on a track with no countersign (no CSD; track = the step's Variant unless given), CSD steps, and People Ops steps while
+// no people_ops user exists, are Admin's: ADMIN_FALLBACK_LABEL and no person (no reminder; Admin ticks any step).
+function onbStepOwner({ step = null, parties = {}, peopleOpsActive = false, assignee = null, track = null } = {}) {
   const O = CONFIG.ONBOARDING;
   const key = onbNormaliseOwner(step && step.Owner) || O.DEFAULT_OWNER;
   const p = parties || {};
   const person = { Employee: p.employee, LM: p.lineManager, CSD: p.csd, Buddy: p.buddy }[key] || null;
+  const t = onbTrackDef(track == null ? (step && step.Variant) : track);
+  const adminFallback = !!t && t.countersign === false && (key === 'CSD' || (key === 'PeopleOps' && peopleOpsActive !== true));
   let base;
-  if (key === 'PeopleOps') {
+  if (adminFallback) {
+    base = { key, label: onbFillText(O.ADMIN_FALLBACK_LABEL, { role: onbOwnerLabel(key) }), person: null };
+  } else if (key === 'PeopleOps') {
     base = peopleOpsActive === true
       ? { key, label: onbOwnerLabel(key), person: null }
       : { key, label: O.PEOPLE_OPS_FALLBACK_LABEL, person: p.csd || null };
@@ -170,7 +204,7 @@ function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '',
       const pilotRows = onbPilotRows(people, pilot);
       if (row && pilotRows.some(p => String(p.id) === String(row.id))) reason = 'pilot';
       else if (pilotRows.some(p => {
-        const parties = onbPlanParties({ PersonID: p.id }, people);
+        const parties = onbPlanParties({ PersonID: p.id }, people, directory);
         return [parties.lineManager, parties.csd].some(x => x && _onbEmail(x.WorkEmail) === me);
       })) reason = 'pilot-reviewer';
       else if (related) reason = 'plan';
@@ -308,14 +342,18 @@ function onbBuddyCandidates(people, joinerId, todayISO) {
 }
 
 // The text for a start-check reason (CONFIG.ONBOARDING.START_REASONS), {days} filled in.
-function onbReasonText(reason) {
+// N-541: {track} = the track's label (trackKey, default DEFAULT_TRACK).
+function onbReasonText(reason, trackKey = '') {
   const O = CONFIG.ONBOARDING;
-  return String(O.START_REASONS[reason] || O.START_REASONS['out-of-scope']).replace('{days}', String(O.START_WINDOW_DAYS));
+  return String(O.START_REASONS[reason] || O.START_REASONS['out-of-scope'])
+    .replace('{days}', String(O.START_WINDOW_DAYS))
+    .replace('{track}', onbTrackLabel(trackKey || O.DEFAULT_TRACK));
 }
 
 // Can "Start onboarding" be offered for this person? { ok, reason }. Reasons in this order: has-plan, off, not-pilot,
 // out-of-scope, no-email, no-start-date, too-late, no-line-manager, no-steps (ONB-D5, D11, D22; Architect calls in N-497).
-function onbStartCheck({ person = null, people = [], plans = [], templates = [], mode = '', pilot = [], todayISO = '' } = {}) {
+// N-541: directory (optional) resolves a line manager with no People row (onbLineManager); no-steps is checked on the person's own track.
+function onbStartCheck({ person = null, people = [], plans = [], templates = [], mode = '', pilot = [], todayISO = '', directory = null } = {}) {
   const O = CONFIG.ONBOARDING;
   const no = reason => ({ ok: false, reason });
   if (!person) return no('out-of-scope');
@@ -329,23 +367,25 @@ function onbStartCheck({ person = null, people = [], plans = [], templates = [],
   const start = spDateIn(person.StartDate) || '';
   if (!start) return no('no-start-date');
   if (todayISO && start < addDaysISO(todayISO, -O.START_WINDOW_DAYS)) return no('too-late');
-  if (!pdpResolveIdentity(people, email).lineManager) return no('no-line-manager');
-  if (!activeChecklistItems(templates, O.RECORD_TYPE, O.DEFAULT_TRACK).length) return no('no-steps');
+  if (!onbLineManager(people, email, directory)) return no('no-line-manager');
+  if (!activeChecklistItems(templates, O.RECORD_TYPE, onbTrackFor(person)).length) return no('no-steps');
   return { ok: true, reason: '' };
 }
 
 // What the employee-record card shows: { kind, reason, plan }. A plan row wins over the switch (kind = active /
 // cancelled / complete; an unknown Status reads as blocked 'has-plan'). No row: ready, off, or blocked + the reason.
-function onbCardState({ person = null, people = [], plans = [], templates = [], mode = '', pilot = [], todayISO = '' } = {}) {
+// N-541 (ONB-D129): a plan read as Complete by onbDerivePlanStatus (DerivedComplete) -> kind 'derived' (Admin can close the record).
+function onbCardState({ person = null, people = [], plans = [], templates = [], mode = '', pilot = [], todayISO = '', directory = null } = {}) {
   const O = CONFIG.ONBOARDING;
   const mine = (plans || []).filter(p => p && person && String(p.PersonID) === String(person.id));
   const status = p => String(p.Status == null ? '' : p.Status).trim();
   const plan = mine.find(p => status(p) === O.PLAN_ACTIVE) || mine[0] || null;
   if (plan) {
+    if (plan.DerivedComplete === true) return { kind: 'derived', reason: '', plan };
     const kind = { Active: 'active', Cancelled: 'cancelled', Complete: 'complete' }[status(plan)];
     return kind ? { kind, reason: '', plan } : { kind: 'blocked', reason: 'has-plan', plan };
   }
-  const chk = onbStartCheck({ person, people, plans, templates, mode, pilot, todayISO });
+  const chk = onbStartCheck({ person, people, plans, templates, mode, pilot, todayISO, directory });
   if (chk.ok) return { kind: 'ready', reason: '', plan: null };
   return { kind: chk.reason === 'off' ? 'off' : 'blocked', reason: chk.reason, plan: null };
 }
@@ -356,10 +396,10 @@ function onbStartFields({ person = null, people = [], buddyEmail = '', byEmail =
   if (!person) throw new Error('No person to start a plan for.');
   const buddy = _onbEmail(buddyEmail);
   if (buddy && !onbBuddyCandidates(people, person.id, todayISO).some(c => c.email === buddy)) {
-    throw new Error('That buddy cannot be picked: they are not an active Talent Partner who has started.');
+    throw new Error(O.TEXT.buddyRefused);
   }
   return onbCleanPlanFields({
-    Title: person.WorkEmail, PersonID: person.id, Track: O.DEFAULT_TRACK, Status: O.PLAN_ACTIVE,
+    Title: person.WorkEmail, PersonID: person.id, Track: onbTrackFor(person) || O.DEFAULT_TRACK, Status: O.PLAN_ACTIVE,
     StartedByEmail: byEmail, StartedAt: todayISO, BuddyEmail: buddy,
   });
 }
@@ -382,7 +422,7 @@ function onbCheckPlans({ plans = [], people = [], templates = [], assignments = 
     if (!e || !spYesNo(e.IsActive, false)) { notFound.push(who(p)); return; }
     if (!spDateIn(e.StartDate)) noStart.push(who(p));
     if (_onbEmail(p.Title) !== _onbEmail(e.WorkEmail)) drift.push(who(p));
-    if (!pdpResolveIdentity(people, e.WorkEmail).lineManager) noLm.push(who(p));
+    if (!onbLineManager(people, e.WorkEmail, directory)) noLm.push(who(p));   // N-541: a directory-only line manager counts
     if (_onbEmail(p.BuddyEmail) && !_onbUniqueRow(index, p.BuddyEmail)) badBuddy.push(who(p) + ' (' + _onbEmail(p.BuddyEmail) + ')');
     if (!activeChecklistItems(templates, O.RECORD_TYPE, p.Track).length) noSteps.push(who(p));
   });
@@ -420,8 +460,7 @@ function onbCheckPlans({ plans = [], people = [], templates = [], assignments = 
 // The track (ChecklistTemplates.Variant) keys for the 'person' record type, and a track's label.
 function onbTrackKeys() { return CONFIG.ONBOARDING.TRACKS.map(t => t.key); }
 function onbTrackLabel(key) {
-  const k = normChecklistKey(key);
-  const hit = CONFIG.ONBOARDING.TRACKS.find(t => normChecklistKey(t.key) === k);
+  const hit = onbTrackDef(key);
   return hit ? hit.label : String(key == null ? '' : key);
 }
 
@@ -492,12 +531,54 @@ function onbFillText(text, vars) {
 }
 
 // ONB-D29. A Library step is a row whose Section is CONFIG.ONBOARDING.LIBRARY_SECTION (case-insensitive).
-// N-502 (ONB-D71). 'roleplay' | 'day30' when this step is one a sign-off ticks (named by ItemKey in CONFIG.ONBOARDING.SIGNOFF.STEP_KEYS), else ''.
+// N-502 (ONB-D71). 'roleplay' | 'day30' when this step is one a sign-off ticks, else ''. N-541: the ItemKeys are per track
+// (TRACKS[].signoffKeys) and the track is the step's Variant (a blank or unknown Variant reads as DEFAULT_TRACK).
 function onbSignoffStepKind(step) {
-  const keys = CONFIG.ONBOARDING.SIGNOFF.STEP_KEYS;
+  const t = onbTrackDef(step && step.Variant) || onbTrackDef(CONFIG.ONBOARDING.DEFAULT_TRACK);
+  const keys = (t && t.signoffKeys) || {};
   const k = String(step && step.ItemKey != null ? step.ItemKey : '').trim();
   if (!k) return '';
   return Object.keys(keys).find(n => keys[n] && String(keys[n]).trim() === k) || '';
+}
+
+// N-541. The ItemKey a sign-off ('roleplay' | 'day30') ticks on a track, or '' (no linked step).
+function onbTrackSignoffKey(trackKey, kind) {
+  const t = onbTrackDef(trackKey);
+  return String((t && t.signoffKeys && t.signoffKeys[kind]) || '').trim();
+}
+
+// N-502 / N-541. The latest OnboardingSignoffs row of one Kind for one plan (by numeric item id), or null. onbSignoffState reads it too.
+function onbLatestSignoff(signoffs, planId, kind) {
+  const pid = String(planId == null ? '' : planId);
+  let best = null, bestId = -Infinity;
+  (signoffs || []).forEach(r => {
+    if (!r || !pid || String(r.PlanID) !== pid || r.Kind !== kind) return;
+    const n = Number(r.id);
+    const id = Number.isFinite(n) ? n : -1;
+    if (!best || id > bestId) { best = r; bestId = id; }
+  });
+  return best;
+}
+
+// N-541 (ONB-D129). Plans as everyone reads them: on a track with no countersign, an Active plan whose latest Day-30 LM sign-off is Signed
+// reads as Complete (Status 'Complete', StoredStatus 'Active', DerivedComplete true) — the line manager cannot write OnboardingPlans, so the
+// stored Status waits for an Admin to close the record. Every other row is returned as given (same object).
+function onbDerivePlanStatus(plans, signoffs) {
+  const O = CONFIG.ONBOARDING;
+  const S = O.SIGNOFF;
+  return (plans || []).map(plan => {
+    if (!plan) return plan;
+    const t = onbTrackDef(plan.Track);
+    if (!t || t.countersign !== false || String(plan.Status == null ? '' : plan.Status).trim() !== O.PLAN_ACTIVE) return plan;
+    const last = onbLatestSignoff(signoffs, plan.id, S.KINDS[1]);
+    if (!last || last.Outcome !== S.SIGNED) return plan;
+    return Object.assign({}, plan, { Status: O.PLAN_STATUSES[1], StoredStatus: O.PLAN_ACTIVE, DerivedComplete: true });
+  });
+}
+
+// N-541. True when any plan is on a track with no countersign (its status may be derived from the sign-offs).
+function onbNeedsSignoffs(plans) {
+  return (plans || []).some(p => { const t = p ? onbTrackDef(p.Track) : null; return !!t && t.countersign === false; });
 }
 
 function onbIsLibraryStep(step) {
@@ -593,7 +674,7 @@ function onbLibraryFilter(items, level) {
 // reassigned, canReassign and assign: { originalEmail, originalName, originalLabel, assigneeEmail } (the Reassign modal's input).
 function onbPlanModel({ plan = null, people = [], templates = [], progressRows = [], email = '', role = '', peopleOpsActive = false, todayISO = '', level = '', assignments = [], directory = null } = {}) {
   const O = CONFIG.ONBOARDING;
-  const parties = onbPlanParties(plan, people);
+  const parties = onbPlanParties(plan, people, directory);   // N-541: a directory-only line manager
   const emp = parties.employee;
   const startDate = emp ? (spDateIn(emp.StartDate) || '') : '';
   const aIndex = onbAssignmentIndex(assignments, plan ? plan.id : null);   // N-520
@@ -666,6 +747,7 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
   return {
     planId: plan ? String(plan.id) : '',
     status,
+    track: plan ? String(plan.Track == null ? '' : plan.Track) : '',   // N-541
     readOnly,
     kind,
     joiner: { id: emp ? String(emp.id) : '', name: emp ? String(emp.EmployeeName || '') : '', startDate },

@@ -83,17 +83,23 @@ function _onbtSignoffRowHtml(row, part, kind) {
     </li>`;
 }
 
+// N-541 (ONB-D131): the track decides which rows show (row.show; a row without it shows all three, the TP layout).
+function _onbtShow(row) {
+  return row.show || { roleplay: true, countersign: true, pdp: true };
+}
+
 function _onbtSignoffHtml(row) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
   const s = row.signoff;
+  const show = _onbtShow(row);
   return `<section class="onbt-block onbt-block--signoffs">
       <h4 class="onbt-sub">${escHtml(T.signoffTitle)}</h4>
       <ul class="onbt-signoffs">
-        ${_onbtSignoffRowHtml(row, s.roleplay, 'roleplay')}
+        ${show.roleplay ? _onbtSignoffRowHtml(row, s.roleplay, 'roleplay') : ''}
         ${_onbtSignoffRowHtml(row, s.day30lm, 'day30')}
-        ${_onbtSignoffRowHtml(row, s.csd, 'countersign')}
+        ${show.countersign ? _onbtSignoffRowHtml(row, s.csd, 'countersign') : ''}
       </ul>
-      <p class="onbt-signoff-pdp">${escHtml(T.pdpTitle)}: ${escHtml(row.pdp.text)}</p>
+      ${show.pdp ? `<p class="onbt-signoff-pdp">${escHtml(T.pdpTitle)}: ${escHtml(row.pdp.text)}</p>` : ''}
     </section>`;
 }
 
@@ -118,7 +124,7 @@ function _onbtChipsHtml(row) {
   return [
     row.complete ? _onbmChip(T.completeChip, 'dh-badge-success') : '',
     row.overdue ? `<span class="badge badge--overdue">${escHtml(onbFillText(T.overdue, { n: row.overdue }))}</span>` : '',
-    _onbmChip(row.pdp.text, pdpTone),
+    _onbtShow(row).pdp ? _onbmChip(row.pdp.text, pdpTone) : '',
   ].join('');
 }
 
@@ -263,6 +269,12 @@ async function onbtTick(planId, itemKey, checked) {
 
 async function _onbtSignoff(planId, kind, action) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
+  if (kind === 'day30' && action === 'sign') {   // N-541 (ONB-D128): on a track with no countersign this sign-off closes the plan
+    const all = _onbtState.view ? _onbtState.view.rows.concat(_onbtState.view.completed) : [];
+    const row = all.find(r => r.planId === String(planId));
+    if (row && !_onbtShow(row).countersign
+      && !(await confirmModal({ message: onbFillText(T.confirmDay30Close, { name: row.name }), confirmLabel: T.confirmDay30Label }))) return;
+  }
   _onbtLock();
   try {
     const res = await signOffOnboarding({ planId, kind, action });

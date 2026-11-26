@@ -10,6 +10,11 @@
 
 function _onbtEmail(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
 
+// N-541. A track's sign-off flags; a blank or unknown track reads as DEFAULT_TRACK (the TP behaviour).
+function _onbtTrack(key) {
+  return onbTrackDef(key) || onbTrackDef(CONFIG.ONBOARDING.DEFAULT_TRACK) || { roleplay: true, countersign: true, pdp: true };
+}
+
 // Every plan this viewer looks after: Active or Complete plans where they are the joiner's line manager, their CSD, or an Admin.
 // -> [{ plan, relations }] in the order given (the model sorts).
 // N-520 (ONB-D114): with assignments, a plan where the viewer only holds a reassigned step is listed too, as { plan, relations, assigneeOnly: true }.
@@ -29,18 +34,11 @@ function onbTeamPlans({ plans = [], people = [], email = '', role = '', peopleOp
 // -> { roleplay, day30lm, csd }, each { signed, byEmail, at }. The latest row per kind wins by numeric item id; Withdrawn = unsigned.
 function onbSignoffState({ signoffs = [], plan = null } = {}) {
   const S = CONFIG.ONBOARDING.SIGNOFF;
-  const pid = plan ? String(plan.id) : '';
-  const latest = {};
-  (signoffs || []).forEach(r => {
-    if (!r || !pid || String(r.PlanID) !== pid || !S.KINDS.includes(r.Kind)) return;
-    const n = Number(r.id);
-    const id = Number.isFinite(n) ? n : -1;
-    if (!latest[r.Kind] || id > latest[r.Kind].id) latest[r.Kind] = { id, row: r };
-  });
+  const pid = plan ? plan.id : null;
   const of = kind => {
-    const hit = latest[kind];
-    return hit && hit.row.Outcome === S.SIGNED
-      ? { signed: true, byEmail: _onbtEmail(hit.row.SignedByEmail), at: spDateIn(hit.row.SignedAt) || '' }
+    const hit = onbLatestSignoff(signoffs, pid, kind);   // N-541: the shared latest-row rule (onboarding-logic.js)
+    return hit && hit.Outcome === S.SIGNED
+      ? { signed: true, byEmail: _onbtEmail(hit.SignedByEmail), at: spDateIn(hit.SignedAt) || '' }
       : { signed: false, byEmail: '', at: '' };
   };
   const csdBy = plan ? _onbtEmail(plan.CSDSignedByEmail) : '';
@@ -53,10 +51,12 @@ function onbSignoffState({ signoffs = [], plan = null } = {}) {
 
 // ONB-D65. The Day-30 gate over one onbPlanModel: every Required phase step ticked (Library, and the two sign-off steps, left out) and
 // the role-play signed off. -> { ready, outstanding, roleplayMissing }
-function onbDay30Gate({ model = null, state = null } = {}) {
+// N-541 (ONB-D131): the role-play counts only on a track that has one (track = the model's unless given; unknown = DEFAULT_TRACK).
+function onbDay30Gate({ model = null, state = null, track = null } = {}) {
   const items = ((model && model.phases) || []).reduce((acc, p) => acc.concat(p.items), []);
   const outstanding = items.filter(i => i.required && !i.done && !i.signoff).length;
-  const roleplayMissing = !(state && state.roleplay && state.roleplay.signed);
+  const flags = _onbtTrack(track == null ? (model && model.track) : track);
+  const roleplayMissing = flags.roleplay ? !(state && state.roleplay && state.roleplay.signed) : false;
   return { ready: outstanding === 0 && !roleplayMissing, outstanding, roleplayMissing };
 }
 
@@ -65,7 +65,8 @@ function onbDay30Gate({ model = null, state = null } = {}) {
 //   role-play, Day-30 LM: the joiner's line manager only. Withdraw until the CSD countersigns (a Complete plan is closed).
 //   Day-30 LM sign: needs the gate. Role-play withdraw: not while the Day-30 LM sign-off stands.
 //   countersign: the joiner's CSD, or an Admin when the plan has no resolvable CSD; needs the Day-30 LM sign-off.
-function onbSignoffRights({ relations = [], planStatus = '', state = null, gate = null, csdPresent = true, readOnly = false } = {}) {
+// N-541 (ONB-D128 / D131): on a track without a role-play or a countersign, that sign-off is off with no reason (the UI hides it).
+function onbSignoffRights({ relations = [], planStatus = '', state = null, gate = null, csdPresent = true, readOnly = false, track = null } = {}) {
   const R = CONFIG.ONBOARDING.TEAM_TEXT.reasons;
   const rel = relations instanceof Set ? relations : new Set(relations || []);
   const st = state || { roleplay: { signed: false }, day30lm: { signed: false }, csd: { signed: false } };
@@ -94,7 +95,8 @@ function onbSignoffRights({ relations = [], planStatus = '', state = null, gate 
   const csd = !isCsd ? off(R.onlyCsd)
     : !st.day30lm.signed ? off(R.needLm)
     : { canSign: true, canWithdraw: false, reason: '' };
-  return { roleplay, day30lm, csd };
+  const flags = _onbtTrack(track);
+  return { roleplay: flags.roleplay ? roleplay : off(''), day30lm, csd: flags.countersign ? csd : off('') };
 }
 
 // The PDP joiner goal-setting status as a chip: { text, tone } (tone 'success' | 'warn' | ''). pdp = loadJoinerGoalSetting's entry
@@ -142,8 +144,11 @@ function onbTeamRow({ model = null, plan = null, relations = [], state = null, r
   const sg = state || { roleplay: { signed: false }, day30lm: { signed: false }, csd: { signed: false } };
   const r = rights || { roleplay: {}, day30lm: {}, csd: {} };
   const part = (k, label) => Object.assign({ label, signed: !!sg[k].signed, byName: who(sg[k]), at: sg[k].at || '' }, r[k]);
+  const flags = _onbtTrack(m.track);   // N-541 (ONB-D131): which sign-off rows and the PDP row this track shows
   return {
     planId: m.planId,
+    track: String(m.track || ''),
+    show: { roleplay: !!flags.roleplay, countersign: !!flags.countersign, pdp: !!flags.pdp },
     personId: m.joiner.id,
     name: m.joiner.name,
     startDate: m.joiner.startDate,
@@ -227,10 +232,10 @@ function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan 
     let model = onbPlanModel({ plan, people, templates, progressRows: (progressByPlan || {})[String(plan.id)] || [], email, role, peopleOpsActive, todayISO, assignments, directory });
     if (readOnly) model = Object.assign({}, model, { phases: model.phases.map(p => Object.assign({}, p, { items: p.items.map(i => Object.assign({}, i, { canTick: false, canReassign: false })) })) });
     const state = onbSignoffState({ signoffs, plan });
-    const gate = onbDay30Gate({ model, state });
-    const parties = onbPlanParties(plan, people);
+    const gate = onbDay30Gate({ model, state, track: plan.Track });
+    const parties = onbPlanParties(plan, people, directory);   // N-541: the welcome email names a directory-only line manager
     const csdPresent = !!parties.csd;
-    const rights = onbSignoffRights({ relations, planStatus: plan.Status, state, gate, csdPresent, readOnly });
+    const rights = onbSignoffRights({ relations, planStatus: plan.Status, state, gate, csdPresent, readOnly, track: plan.Track });
     const row = onbTeamRow({ model, plan, relations, state, rights, gate, pdp: (pdpByPerson || {})[String(plan.PersonID)], todayISO, peopleOpsActive, nameOf, viewerEmail: email });
     row.welcome = row.complete ? null : onbWelcomeInput({ model, parties });   // N-516: the "Draft welcome email" step action's data
     if (assigneeOnly) row.assigneeOnly = true;   // N-520
@@ -250,7 +255,7 @@ function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan 
     totals: {
       active: active.length,
       overdue: active.reduce((n, r) => n + r.overdue, 0),
-      awaiting: active.filter(r => r.signoff.roleplay.canSign || r.signoff.day30lm.canSign || r.signoff.csd.canSign || (r.signoff.day30lm.signed && !r.signoff.csd.signed)).length,
+      awaiting: active.filter(r => r.signoff.roleplay.canSign || r.signoff.day30lm.canSign || r.signoff.csd.canSign || (r.show.countersign && r.signoff.day30lm.signed && !r.signoff.csd.signed)).length,
     },
   };
 }

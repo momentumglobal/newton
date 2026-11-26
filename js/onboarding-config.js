@@ -19,11 +19,23 @@ CONFIG.ONBOARDING = {
   MODES:         ['Off', 'Pilot', 'On'],
   SETTINGS:      { MODE: 'OnboardingMode', PILOT: 'OnboardingPilot' },
   EMAIL_SEP:     ';',
-  // Who can be a pilot joiner / have a Talent Partner track plan (v1). Future starters included.
+  // Who can have a Talent Partner track plan: deployable staff at these levels. Future starters included.
   SCOPE_LEVELS:  ['TP', 'STP', 'PTP'],
-  // ChecklistTemplates.Variant for 'person' rows. The SDM track is v2.
-  TRACKS:        [{ key: 'TP', label: 'Talent Partner' }],
+  // ChecklistTemplates.Variant for 'person' rows. The SDM track is v2. N-541 (ONB-D125–D131) adds Internal, the one track for every
+  // internal function (People.StaffType Internal). Flags per track: countersign = the CSD countersign closes the plan (false = the line
+  // manager's Day-30 sign-off closes it, read as Complete by onbDerivePlanStatus); roleplay = the Day-30 gate needs the role-play sign-off;
+  // pdp = My Team shows the PDP goal-setting status. signoffKeys = the ItemKeys of the steps each sign-off ticks (ONB-D71); a blank or
+  // missing key means no linked step, never a failed sign-off. Chris sets the Internal day30 key once that step exists.
+  TRACKS: [
+    { key: 'TP',       label: 'Talent Partner', countersign: true,  roleplay: true,  pdp: true,
+      signoffKeys: { roleplay: 'onb_tp_m05', day30: 'onb_tp_day30-signoff' } },
+    { key: 'Internal', label: 'Internal staff', countersign: false, roleplay: false, pdp: false,
+      signoffKeys: { day30: '' } },
+  ],
   DEFAULT_TRACK: 'TP',
+  INTERNAL_TRACK: 'Internal',
+  // N-541 (ONB-D130): on a track with no CSD, CSD-owned steps (and People Ops steps while no people_ops user exists) belong to Admin.
+  ADMIN_FALLBACK_LABEL: '{role} \u2014 Admin for now',
   // Step owners (ONB-D2). PeopleOps resolves to the joiner's CSD while no active people_ops user exists (ONB-D17).
   OWNERS: [
     { key: 'Employee',  label: 'Employee' },
@@ -72,12 +84,12 @@ CONFIG.ONBOARDING = {
   START_REASONS: {
     'off':             'Onboarding is switched Off (Config Panel → Onboarding).',
     'not-pilot':       'Onboarding is in Pilot and this person is not on the pilot list.',
-    'out-of-scope':    'Only active Talent Partners (TP, STP and PTP) get an onboarding plan.',
+    'out-of-scope':    'Only active Talent Partners (TP, STP and PTP) and internal staff get an onboarding plan.',
     'no-email':        'Add a unique work email to this person first.',
     'no-start-date':   'Set a start date first.',
     'too-late':        'Started more than {days} days ago. Onboarding plans are for new joiners only.',
     'no-line-manager': 'Set “Reports to” first. The plan needs a line manager.',
-    'no-steps':        'The Talent Partner track has no steps yet (Checklist Admin).',
+    'no-steps':        'The {track} track has no steps yet (Checklist Admin).',
     'has-plan':        'This person already has a plan.',
   },
   // The Onboarding card on the employee record (onboarding-plan-ui.js).
@@ -106,6 +118,11 @@ CONFIG.ONBOARDING = {
     restartOk:     'Onboarding plan restarted.',
     loadFailed:    'The onboarding plan could not be loaded. Refresh the page to try again.',
     actionFailed:  'Couldn’t update the onboarding plan:',
+    track:         'Track',
+    derivedNote:   'Closed by the line manager\u2019s Day-30 sign-off. Close the plan record to file it.',   // N-541 (ONB-D129)
+    closeRecord:   'Close plan record',
+    closeOk:       'Plan record closed.',
+    buddyRefused:  'That buddy cannot be picked: they are not an active person in onboarding scope who has started.',
   },
   // N-498 (ONB-3). Where the revamped decks live (ONB-D26): the OnboardingContent document library on the
   // SolutionsHubReporting site. Step links point into it. Rename the library
@@ -223,8 +240,8 @@ CONFIG.ONBOARDING.BUDDY_TEXT = {
 
 // N-502 (ONB-7, ONB-D63..D71). The sign-offs. LIST = the OnboardingSignoffs list (Newton Users Contribute without delete): the line manager's
 // role-play and Day-30 sign-offs, append-only, latest row per (plan, kind) wins (ONB-D69). The CSD countersign is on OnboardingPlans
-// (PLAN_FIELDS above), which only an Admin writes. STEP_KEYS = the ItemKeys of the two checklist steps the sign-offs tick (ONB-D71);
-// a blank or unknown key means no linked step, never a failed sign-off. ACTION_KINDS = the api's kind -> the stored Kind.
+// (PLAN_FIELDS above), which only an Admin writes. The ItemKeys of the steps the sign-offs tick are per track (TRACKS[].signoffKeys,
+// N-541; they were STEP_KEYS here). ACTION_KINDS = the api's kind -> the stored Kind.
 CONFIG.ONBOARDING.SIGNOFF = {
   LIST:         'OnboardingSignoffs',
   KINDS:        ['RolePlay', 'Day30LM'],
@@ -233,7 +250,6 @@ CONFIG.ONBOARDING.SIGNOFF = {
   WITHDRAWN:    'Withdrawn',
   ACTION_KINDS: { roleplay: 'RolePlay', day30: 'Day30LM' },
   ACTIONS:      ['sign', 'withdraw'],
-  STEP_KEYS:    { roleplay: 'onb_tp_m05', day30: 'onb_tp_day30-signoff' },
   FIELDS:       ['Title', 'PlanID', 'PersonID', 'Kind', 'Outcome', 'SignedByEmail', 'SignedAt'],
 };
 
@@ -337,6 +353,8 @@ CONFIG.ONBOARDING.TEAM_TEXT = {
   },
   confirmCountersign: 'Countersign and close {name}’s onboarding plan? This cannot be undone.',
   confirmLabel:   'Countersign',
+  confirmDay30Close: 'Sign off {name}\u2019s Day-30 review? This closes the plan and cannot be undone.',   // N-541 (ONB-D128)
+  confirmDay30Label: 'Sign off and close',
   signoffOk:      'Sign-off saved.',
   withdrawOk:     'Sign-off withdrawn.',
   countersignOk:  'Plan closed.',

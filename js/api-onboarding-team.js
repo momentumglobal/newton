@@ -120,10 +120,10 @@ async function signOffOnboarding({ planId, kind, action } = {}) {
   if (!S.ACTIONS.includes(action)) throw new Error('Unknown sign-off action.');
   const c = await _onbTeamWriteCtx(planId);
   const progressRows = await getChecklistProgress(O.RECORD_TYPE, { recordId: c.plan.PersonID });
-  const model = onbPlanModel({ plan: c.plan, people: c.people, templates: c.templates, progressRows, email: c.email, role: c.role, peopleOpsActive: c.gate.peopleOpsActive, todayISO: localDayISO() });
+  const model = onbPlanModel({ plan: c.plan, people: c.people, templates: c.templates, progressRows, email: c.email, role: c.role, peopleOpsActive: c.gate.peopleOpsActive, todayISO: localDayISO(), directory: c.directory });
   const state = onbSignoffState({ signoffs: c.signoffs, plan: c.plan });
-  const gate = onbDay30Gate({ model, state });
-  const rights = onbSignoffRights({ relations: c.entry.relations, planStatus: c.plan.Status, state, gate, csdPresent: !!onbPlanParties(c.plan, c.people).csd });
+  const gate = onbDay30Gate({ model, state, track: c.plan.Track });   // N-541: no role-play on a track without one
+  const rights = onbSignoffRights({ relations: c.entry.relations, planStatus: c.plan.Status, state, gate, csdPresent: !!onbPlanParties(c.plan, c.people).csd, track: c.plan.Track });
   const r = rights[kind === 'roleplay' ? 'roleplay' : 'day30lm'];
   if (action === 'sign' ? !r.canSign : !r.canWithdraw) throw new Error(r.reason || 'That sign-off is not available.');
   const kindName = S.ACTION_KINDS[kind];
@@ -136,7 +136,7 @@ async function signOffOnboarding({ planId, kind, action } = {}) {
     SignedByEmail: (getCurrentUser()?.email || '').trim().toLowerCase(),
     SignedAt: isoDate(localDayISO()),
   });
-  const stepKey = String(S.STEP_KEYS[kind] || '').trim();
+  const stepKey = onbTrackSignoffKey(c.plan.Track, kind);   // N-541: per track (TRACKS[].signoffKeys); '' = no linked step
   const step = stepKey ? activeChecklistItems(c.templates, O.RECORD_TYPE, c.plan.Track).find(t => String(t.ItemKey == null ? '' : t.ItemKey).trim() === stepKey) : null;
   if (!step) return { ok: true, warning: '' };
   try {
@@ -155,8 +155,10 @@ async function countersignOnboarding({ planId } = {}) {
   const O = CONFIG.ONBOARDING;
   await _onbPlanWriteGate();
   const c = await _onbTeamWriteCtx(planId);
+  const track = onbTrackDef(c.plan.Track);
+  if (track && track.countersign === false) throw new Error('This plan has no countersign: the line manager\u2019s Day-30 sign-off closes it.');   // N-541 (ONB-D128)
   const state = onbSignoffState({ signoffs: c.signoffs, plan: c.plan });
-  const rights = onbSignoffRights({ relations: c.entry.relations, planStatus: c.plan.Status, state, csdPresent: !!onbPlanParties(c.plan, c.people).csd });
+  const rights = onbSignoffRights({ relations: c.entry.relations, planStatus: c.plan.Status, state, csdPresent: !!onbPlanParties(c.plan, c.people).csd, track: c.plan.Track });
   if (!rights.csd.canSign) throw new Error(rights.csd.reason || 'You cannot countersign this plan.');
   await updateItem(O.PLAN_LIST, c.plan.id, onbCleanPlanFields({
     CSDSignedByEmail: (getCurrentUser()?.email || '').trim().toLowerCase(),

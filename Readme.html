@@ -1677,6 +1677,14 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">CI test job moved to Node 24 (N-540)</div>
+        <ul>
+          <li>The <code>test</code> job in <code>static.yml</code> now runs the suite on Node 24; it was on Node 20, which reached end of life in April 2026. The suite passes in all three zones (London, UTC, New York). No app code changed.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
         <div class="changelog-title">Deploy workflows moved to Node 24 actions (N-539)</div>
         <ul>
           <li><code>static.yml</code> and <code>gitleaks.yml</code> now use the Node 24 versions of the GitHub actions they call: <code>checkout</code> v5, <code>setup-node</code> v5, <code>configure-pages</code> v6 and <code>upload-pages-artifact</code> v5 (<code>deploy-pages</code> v5 already was). This clears the Node 20 deprecation warning on deploy. One side effect: <code>.gitleaksignore</code> is no longer published to the live site. No app code changed.</li>

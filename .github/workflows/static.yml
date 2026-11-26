@@ -32,7 +32,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '24'
       # N-134: three zones, covering the three distinct relationships to UTC.
       # tests/run.js FORCES TZ=Europe/London on line 11, so a bare `TZ=` prefix
       # is silently overwritten and would give three identical London runs

@@ -25,7 +25,7 @@ ASSERTIONS.push(
       _assertEqual(O.MODES, ['Off', 'Pilot', 'On'], 'AC1 modes, Off first');
       _assertEqual(O.SETTINGS, { MODE: 'OnboardingMode', PILOT: 'OnboardingPilot' }, 'AC1 AppSettings columns');
       _assertEqual(O.OWNERS.map(o => o.key), ['Employee', 'LM', 'CSD', 'PeopleOps', 'Ops', 'Buddy'], 'AC1 owner keys');
-      _assertEqual(O.TRACKS.map(t => t.key), ['TP', 'Marketing'], 'AC1 tracks TP and (N-541) Marketing; SDM is v2');
+      _assertEqual(O.TRACKS.map(t => t.key), ['TP', 'Marketing', 'Sales', 'People'], 'AC1 tracks TP, (N-541) Marketing, (N-542) Sales and People; SDM is v2');
       _assertEqual(O.RECORD_TYPE, 'person', 'AC1 record type');
       _assertEqual(CONFIG.CHECKLISTS.RECORD_TYPES, ['project', 'role', 'person'], 'AC1 RECORD_TYPES');
       _assertEqual(CONFIG.CHECKLISTS.SWITCH_TYPES, ['project', 'role'], 'AC1 SWITCH_TYPES');
@@ -541,7 +541,7 @@ ASSERTIONS.push(
       _assertEqual(onbStepFromRow({ DueOffsetDays: '7' }).dueOffsetDays, 7, 'AC11 numeric string offset');
       _assertEqual([onbDueText(0), onbDueText(3), onbDueText(-5), onbDueText(-1), onbDueText(null), onbDueText(2.5), onbDueText('')],
         ['Day 1 (start day)', 'Day 4', '5 days before start', '1 day before start', '', '', ''], 'AC5 due text');
-      _assertEqual(onbTrackKeys(), ['TP', 'Marketing'], 'tracks (N-541 adds Marketing)');
+      _assertEqual(onbTrackKeys(), ['TP', 'Marketing', 'Sales', 'People'], 'tracks (N-541 Marketing, N-542 Sales and People)');
       _assertEqual([onbTrackLabel('TP'), onbTrackLabel('tp'), onbTrackLabel('XX')], ['Talent Partner', 'Talent Partner', 'XX'], 'track labels');
     },
   },
@@ -978,7 +978,7 @@ ASSERTIONS.push(
       _assertEqual(/createItem\(|updateItem\(|deleteItem\(|setChecklistItemDone\(/.test(view), false, 'the page reads only; ticking stays tickOnboardingStep');
       _assertEqual(/return \{ none: true, gateState: gate\.state \}/.test(view) && /onbBuddyModel\(onbPlanModel\(/.test(view), true, 'none shape and the card model');
       const nav = api.slice(api.indexOf('async function resolveOnboardingNav'), api.indexOf('async function getOnboardingPlanView'));
-      const early = nav.indexOf('if (!buddy.length) return Object.assign(onbNavSignal(who), { rituals });');   // N-500: the signal also carries rituals
+      const early = nav.indexOf('if (!buddy.length) return Object.assign(onbNavSignal(who), ref);');   // N-500: the signal also carries rituals (N-542: the reference-tab signals)
       _assertEqual(early > -1 && early < nav.indexOf('getChecklistTemplates(') && early < nav.indexOf('getChecklistProgress('), true, 'the nav reads templates and progress only after finding a buddy plan');
       _assertEqual(/buddy\.map\(m => getChecklistProgress\(O\.RECORD_TYPE, \{ recordId: m\.plan\.PersonID \}\)\)/.test(nav), true, 'AC12 nav: progress per buddy plan only');
       const own = api.slice(api.indexOf('async function getOnboardingPlanView'), api.indexOf('async function tickOnboardingStep'));
@@ -1050,7 +1050,7 @@ ASSERTIONS.push(
     fn: function () {
       const api = _onbSrc('api-onboarding.js');
       const nav = api.slice(api.indexOf('async function resolveOnboardingNav'), api.indexOf('async function getOnboardingPlanView'));
-      _assertEqual(/onbRitualsVisible\(\{ mode: gate\.mode, gateState: gate\.state \}\)/.test(nav), true, 'rituals comes from the mode and the gate state');
+      _assertEqual(/onbReferenceTabs\(\{ mode: gate\.mode, gateState: gate\.state, person:/.test(nav), true, 'rituals comes from the mode and the gate state (N-542: through onbReferenceTabs, which starts from onbRitualsVisible)');
       _assertEqual((nav.match(/Object\.assign\(onbNavSignal\(/g) || []).length, 2, 'both success returns carry rituals');
       _assertEqual(/catch \(e\)[\s\S]*return \{ plans: 0, buddy: 0, actions: 0 \}/.test(nav), true, 'a failed read leaves rituals out (read as false)');
       _assertEqual(/onbRituals: !!onbNav\.rituals/.test(_onbSrc('my-momentum-app.js')), true, 'app: onbRituals signal');

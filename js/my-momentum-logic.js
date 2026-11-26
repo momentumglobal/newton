@@ -42,7 +42,7 @@ function mmTabRelevant(key, ctx) {
     case 'myDetails':     return c.state === 'ok' || roleCan(c.role, 'myDetailsAdmin');   // N-456: Admin / People Ops reach the picker even with no People row
     case 'myScorecard':   return !!s.hasActivity;
     case 'myDevelopment': return !!s.pdpMy;
-    case 'myOnboarding':  return !!s.onbPlans || !!s.onbRituals;   // N-499 (ONB-D28), N-509: a plan of their own to see; N-500 (ONB-D45, D47): or the Processes & Rituals reference tab
+    case 'myOnboarding':  return !!s.onbPlans || !!s.onbRituals || !!s.onbLibrary;   // N-542: or the Learning Library alone (internal-function staff)
     case 'myBuddying':    return !!s.onbBuddy;   // N-509 (ONB-D38): the buddy of at least one Active plan
     case 'myTeam':        return mmTeamSubTabs(c).length > 0;
     default:              return false;

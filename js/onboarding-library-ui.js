@@ -64,7 +64,7 @@ function _onblDraw() {
   const page = document.getElementById('onb-page');
   if (!page) return;
   const s = _onblState;
-  page.innerHTML = onblPageHtml(onbLibraryTabModel({ templates: s.rows, level: s.level }), s.state, s.level);
+  page.innerHTML = onblPageHtml(onbLibraryTabModel({ templates: s.rows, level: s.level, track: _mmSignals.onbLibraryTrack || '' }), s.state, s.level);   // N-542 (ONB-D138): the viewer's own track
   lucide.createIcons();
 }
 

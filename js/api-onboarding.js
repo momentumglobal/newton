@@ -374,15 +374,16 @@ async function resolveOnboardingNav() {
     const directory = await _onbDirectoryOrPeople(people);   // N-522
     const who = { gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments, directory };
     const buddy = gate.state === 'live' || gate.state === 'preview' ? onbBuddyPlans(who) : [];
-    const rituals = onbRitualsVisible({ mode: gate.mode, gateState: gate.state });   // N-500 (ONB-D47): the Processes & Rituals tab
-    if (!buddy.length) return Object.assign(onbNavSignal(who), { rituals });
+    const mine = (pdpEmailIndex(people).get(_onbEmail(email)) || []);
+    const ref = onbReferenceTabs({ mode: gate.mode, gateState: gate.state, person: mine.length === 1 ? mine[0] : null });   // N-500 (ONB-D47); N-542 (ONB-D137..D139): rituals, library, libraryTrack
+    if (!buddy.length) return Object.assign(onbNavSignal(who), ref);
     const [templates, rows] = await Promise.all([
       getChecklistTemplates(O.RECORD_TYPE),
       Promise.all(buddy.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID }))),
     ]);
     const progressByPlan = {};
     buddy.forEach((m, i) => { progressByPlan[String(m.plan.id)] = rows[i]; });
-    return Object.assign(onbNavSignal(Object.assign(who, { templates, progressByPlan, todayISO: localDayISO() })), { rituals });
+    return Object.assign(onbNavSignal(Object.assign(who, { templates, progressByPlan, todayISO: localDayISO() })), ref);
   } catch (e) {
     console.warn('My Onboarding: tab signals unavailable', e);
     return { plans: 0, buddy: 0, actions: 0 };

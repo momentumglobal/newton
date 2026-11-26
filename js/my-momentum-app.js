@@ -48,7 +48,7 @@ window.MY_MOMENTUM_APP = {
     _mmIdentity = identity;
     _mmState = identityFailed ? 'error' : mmTabState(identity);
     // hasReports comes from the identity just loaded (no extra read): a manager with direct reports or a CSD tree gets Team Scorecards.
-    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity, onbPlans: onbNav.plans > 0, onbBuddy: onbNav.buddy > 0, onbActions: onbNav.actions, onbRituals: !!onbNav.rituals, onbTeam: onbTeamNav.team > 0 };   // N-500: the Processes & Rituals tab
+    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity, onbPlans: onbNav.plans > 0, onbBuddy: onbNav.buddy > 0, onbActions: onbNav.actions, onbRituals: !!onbNav.rituals, onbLibrary: !!onbNav.library, onbLibraryTrack: onbNav.libraryTrack || '', onbTeam: onbTeamNav.team > 0 };   // N-500: the Processes & Rituals tab
 
     renderMyMomentumNav(_mmResolvedRole);
     initCommandBar({ currentModule: 'myMomentum', role: _mmResolvedRole, navigateFn: 'navigateToMyMomentum' });

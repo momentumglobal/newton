@@ -23,15 +23,20 @@ CONFIG.ONBOARDING = {
   SCOPE_LEVELS:  ['TP', 'STP', 'PTP'],
   // ChecklistTemplates.Variant for 'person' rows. The SDM track is v2. N-541 (ONB-D132, superseding D125) adds one track per internal
   // function: an entry with staffFunction is the track for internal staff (People.StaffType Internal) whose StaffFunction matches. v1 has
-  // Marketing; Sales and People are one entry each later, with no code change. Flags per track: countersign = the CSD countersign closes the plan (false = the line
+  // Marketing; N-542 (ONB-D135) adds Sales and People. Another function is one more entry, with no code change. Flags per track: countersign = the CSD countersign closes the plan (false = the line
   // manager's Day-30 sign-off closes it, read as Complete by onbDerivePlanStatus); roleplay = the Day-30 gate needs the role-play sign-off;
   // pdp = My Team shows the PDP goal-setting status. signoffKeys = the ItemKeys of the steps each sign-off ticks (ONB-D71); a blank or
-  // missing key means no linked step, never a failed sign-off.
+  // missing key means no linked step, never a failed sign-off. Set a track's day30 key once its Day-30 sign-off step exists; until then
+  // that step is an ordinary Required step, ticked by hand.
   TRACKS: [
     { key: 'TP',       label: 'Talent Partner', countersign: true,  roleplay: true,  pdp: true,
       signoffKeys: { roleplay: 'onb_tp_m05', day30: 'onb_tp_day30-signoff' } },
     { key: 'Marketing', label: 'Marketing', staffFunction: 'Marketing', countersign: false, roleplay: false, pdp: false,
       signoffKeys: { day30: 'ck_mwxjsisl_5elj' } },
+    { key: 'Sales',     label: 'Sales',     staffFunction: 'Sales',     countersign: false, roleplay: false, pdp: false,
+      signoffKeys: { day30: '' } },
+    { key: 'People',    label: 'People',    staffFunction: 'People',    countersign: false, roleplay: false, pdp: false,
+      signoffKeys: { day30: '' } },
   ],
   DEFAULT_TRACK: 'TP',
   // N-541 (ONB-D130): on a track with no CSD, CSD-owned steps (and People Ops steps while no people_ops user exists) belong to Admin.

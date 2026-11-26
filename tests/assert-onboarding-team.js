@@ -489,11 +489,12 @@ ASSERTIONS.push(
       const n = _n541Fx(), f = n.f;
       _assertEqual([n.mia, f.tp1, f.stp, f.ptp, f.sdm, f.csd].map(onbTrackFor), ['Marketing', 'TP', 'TP', 'TP', '', ''], 'AC1 tracks by person');
       const sales = Object.assign({}, n.mia, { StaffFunction: 'Sales' });
-      _assertEqual([onbTrackFor(sales), onbTrackFor(Object.assign({}, n.mia, { StaffFunction: '' })), onbTrackFor(Object.assign({}, n.mia, { StaffFunction: 'People' }))], ['', '', ''], 'AC21 no track yet for Sales, People or a blank function');
-      const reason = onbStartCheck({ person: sales, people: n.people.concat([sales]), plans: [], templates: n.templates, mode: 'On', pilot: [], todayISO: '2026-11-26', directory: n.directory }).reason;
-      _assertEqual([reason, onbReasonText(reason, '', 'Sales')], ['no-track', 'There is no onboarding track for Sales yet.'], 'AC23 no-track, named');
-      CONFIG.ONBOARDING.TRACKS.push({ key: 'Sales', label: 'Sales', staffFunction: 'Sales', countersign: false, roleplay: false, pdp: false, signoffKeys: {} });
-      try { _assertEqual(onbTrackFor(sales), 'Sales', 'AC24 a Sales track is one TRACKS entry'); } finally { CONFIG.ONBOARDING.TRACKS.pop(); }
+      const ops = Object.assign({}, n.mia, { StaffFunction: 'Operations' });
+      _assertEqual([onbTrackFor(sales), onbTrackFor(Object.assign({}, n.mia, { StaffFunction: 'People' })), onbTrackFor(ops), onbTrackFor(Object.assign({}, n.mia, { StaffFunction: 'Internal TA' })), onbTrackFor(Object.assign({}, n.mia, { StaffFunction: '' }))], ['Sales', 'People', '', '', ''], 'AC21 / N-542 AC2: Sales and People have tracks; Operations, Internal TA and a blank function do not');
+      const reason = onbStartCheck({ person: ops, people: n.people.concat([ops]), plans: [], templates: n.templates, mode: 'On', pilot: [], todayISO: '2026-11-26', directory: n.directory }).reason;
+      _assertEqual([reason, onbReasonText(reason, '', 'Operations')], ['no-track', 'There is no onboarding track for Operations yet.'], 'AC23 no-track, named');
+      CONFIG.ONBOARDING.TRACKS.push({ key: 'Operations', label: 'Operations', staffFunction: 'Operations', countersign: false, roleplay: false, pdp: false, signoffKeys: {} });
+      try { _assertEqual(onbTrackFor(ops), 'Operations', 'AC24 another function\u2019s track is one TRACKS entry'); } finally { CONFIG.ONBOARDING.TRACKS.pop(); }
       _assertEqual([
         onbTrackFor(Object.assign({}, n.mia, { IsActive: false })),
         onbTrackFor(Object.assign({}, n.mia, { IsPlaceholder: true })),
@@ -599,6 +600,48 @@ ASSERTIONS.push(
       _assertEqual(/onbTrackSignoffKey\(c\.plan\.Track, kind\)/.test(team) && !/STEP_KEYS/.test(team), true, 'AC14 per-track step key');
       _assertEqual(/countersign === false\) throw/.test(team), true, 'AC11 countersign refused on a no-countersign track');
       _assertEqual(/getOnboardingDirectory\(people\)[\s\S]*?onbStartCheck\(\{[^}]*directory/.test(api), true, 'AC2 the start write resolves the line manager through the directory');
+    },
+  },
+);
+
+// ── N-542 (ONB-11): Sales and People tracks; reference sub-tabs for internal-function staff ─────────────────────────
+ASSERTIONS.push(
+  {
+    name: 'N-542 AC1-AC4 Sales and People tracks: Marketing\u2019s flags, blank Day-30 key; a Sales joiner with no steps gets no-steps',
+    fn: function () {
+      const n = _n541Fx();
+      const T = k => CONFIG.ONBOARDING.TRACKS.find(t => t.key === k);
+      ['Sales', 'People'].forEach(k => _assertEqual([T(k).staffFunction, T(k).label, T(k).countersign, T(k).roleplay, T(k).pdp, T(k).signoffKeys.day30], [k, k, false, false, false, ''], 'AC1 ' + k + ' shaped like Marketing'));
+      _assertEqual(onbTrackKeys(), ['TP', 'Marketing', 'Sales', 'People'], 'AC4 Checklist Admin tabs');
+      const sam = Object.assign({}, n.mia, { id: '45', EmployeeName: 'Sal Sales', WorkEmail: 'sal.sales@mg.test', StaffFunction: 'Sales' });
+      const r = onbStartCheck({ person: sam, people: n.people.concat([sam]), plans: [], templates: n.templates, mode: 'On', pilot: [], todayISO: '2026-11-26', directory: n.directory }).reason;
+      _assertEqual([r, onbReasonText(r, onbTrackFor(sam))], ['no-steps', 'The Sales track has no steps yet (Checklist Admin).'], 'AC3 no-steps, naming Sales');
+    },
+  },
+  {
+    name: 'N-542 AC6-AC10 reference sub-tabs: internal-function staff get only their own track\u2019s Learning Library',
+    fn: function () {
+      const n = _n541Fx(), f = n.f;
+      const ref = (person, mode, gateState) => onbReferenceTabs({ mode: mode || 'On', gateState: gateState || 'none', person });
+      _assertEqual(ref(n.mia), { rituals: false, library: true, libraryTrack: 'Marketing' }, 'AC6 Marketing: Library only, own track');
+      const tpRef = { rituals: true, library: true, libraryTrack: 'TP' };
+      _assertEqual([ref(f.tp1), ref(Object.assign({}, n.mia, { StaffFunction: 'Operations' })), ref(null)], [tpRef, tpRef, tpRef], 'AC6 TP, Operations and no People row: unchanged');
+      _assertEqual(ref(n.mia, 'Off', 'none'), { rituals: false, library: false, libraryTrack: '' }, 'AC6 Off, no preview: nothing');
+      _assertEqual(onbSubTabs({ onbRituals: false, onbLibrary: true }).map(t => t.key), ['library'], 'AC7 Library alone');
+      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: false, onbLibrary: true }).map(t => t.key), ['plan', 'library'], 'AC7 with a plan: Plan + Library');
+      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals', 'expectations', 'library'], 'AC7 back-compat: onbRituals alone gives all three');
+      _assertEqual(mmTabRelevant('myOnboarding', { state: 'ok', role: 'staff', signals: { onbLibrary: true } }), true, 'AC8 My Onboarding shows for Library alone');
+      const lib = (key, variant) => ({ id: key, RecordType: 'person', Variant: variant, Active: true, ItemKey: key, ItemLabel: 'Lib ' + key, Section: 'Library', SectionOrder: 9, ItemOrder: 1, Owner: 'Employee', DueOffsetDays: null, StepMode: 'Self-guided', Required: false, LevelTag: '', ContentUrl: '', HelpText: '' });
+      const rows = [lib('tpl', 'TP'), lib('mkl', 'Marketing')];
+      _assertEqual([onbLibraryTabModel({ templates: rows, track: 'Marketing' }).all.map(i => i.itemKey), onbLibraryTabModel({ templates: rows }).all.map(i => i.itemKey)], [['mkl'], ['tpl']], 'AC9 Marketing Library vs the default TP Library');
+    },
+  },
+  {
+    name: 'N-542 source contract: the nav sends the viewer\u2019s People row to onbReferenceTabs; the app and the Library page carry the track',
+    fn: function () {
+      _assertEqual(/onbReferenceTabs\(\{ mode: gate\.mode, gateState: gate\.state, person: mine\.length === 1 \? mine\[0\] : null \}\)/.test(_onbSrc('api-onboarding.js')), true, 'nav: unique People row by effective email');
+      _assertEqual(/onbLibrary: !!onbNav\.library, onbLibraryTrack: onbNav\.libraryTrack \|\| ''/.test(_onbSrc('my-momentum-app.js')), true, 'app signals');
+      _assertEqual(/onbLibraryTabModel\(\{ templates: s\.rows, level: s\.level, track: _mmSignals\.onbLibraryTrack \|\| '' \}\)/.test(_onbSrc('onboarding-library-ui.js')), true, 'Library page: the viewer\u2019s track');
     },
   },
 );

@@ -607,11 +607,12 @@ ASSERTIONS.push(
 // ── N-542 (ONB-11): Sales and People tracks; reference sub-tabs for internal-function staff ─────────────────────────
 ASSERTIONS.push(
   {
-    name: 'N-542 AC1-AC4 Sales and People tracks: Marketing\u2019s flags, blank Day-30 key; a Sales joiner with no steps gets no-steps',
+    name: 'N-542 AC1-AC4 Sales and People tracks: Marketing\u2019s flags, Day-30 key (N-543); a Sales joiner with no steps gets no-steps',
     fn: function () {
       const n = _n541Fx();
       const T = k => CONFIG.ONBOARDING.TRACKS.find(t => t.key === k);
-      ['Sales', 'People'].forEach(k => _assertEqual([T(k).staffFunction, T(k).label, T(k).countersign, T(k).roleplay, T(k).pdp, T(k).signoffKeys.day30], [k, k, false, false, false, ''], 'AC1 ' + k + ' shaped like Marketing'));
+      const day30 = { Sales: 'ck_mwxq339w_5eul', People: 'ck_mwxq3q0h_juvk' };   // N-543: the Day-30 sign-off steps
+      ['Sales', 'People'].forEach(k => _assertEqual([T(k).staffFunction, T(k).label, T(k).countersign, T(k).roleplay, T(k).pdp, T(k).signoffKeys.day30], [k, k, false, false, false, day30[k]], 'AC1 ' + k + ' shaped like Marketing, Day-30 step linked (N-543)'));
       _assertEqual(onbTrackKeys(), ['TP', 'Marketing', 'Sales', 'People'], 'AC4 Checklist Admin tabs');
       const sam = Object.assign({}, n.mia, { id: '45', EmployeeName: 'Sal Sales', WorkEmail: 'sal.sales@mg.test', StaffFunction: 'Sales' });
       const r = onbStartCheck({ person: sam, people: n.people.concat([sam]), plans: [], templates: n.templates, mode: 'On', pilot: [], todayISO: '2026-11-26', directory: n.directory }).reason;

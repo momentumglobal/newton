@@ -34,9 +34,9 @@ CONFIG.ONBOARDING = {
     { key: 'Marketing', label: 'Marketing', staffFunction: 'Marketing', countersign: false, roleplay: false, pdp: false,
       signoffKeys: { day30: 'ck_mwxjsisl_5elj' } },
     { key: 'Sales',     label: 'Sales',     staffFunction: 'Sales',     countersign: false, roleplay: false, pdp: false,
-      signoffKeys: { day30: '' } },
+      signoffKeys: { day30: 'ck_mwxq339w_5eul' } },
     { key: 'People',    label: 'People',    staffFunction: 'People',    countersign: false, roleplay: false, pdp: false,
-      signoffKeys: { day30: '' } },
+      signoffKeys: { day30: 'ck_mwxq3q0h_juvk' } },
   ],
   DEFAULT_TRACK: 'TP',
   // N-541 (ONB-D130): on a track with no CSD, CSD-owned steps (and People Ops steps while no people_ops user exists) belong to Admin.

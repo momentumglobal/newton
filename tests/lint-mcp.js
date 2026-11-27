@@ -237,3 +237,30 @@ function lintMcpWriteTools(src, cfg) {
   }
   return out.sort(function (a, b) { return a.line - b.line; });
 }
+
+// ── N-547 (specs/N-547.md): guide tools ──────────────────────────────────────────────────
+// mcp/newton-guides.js reads no Newton list and writes nothing. It gets every lintMcpTools rule
+// (no Graph path, no direct transport, no write-shaped call, no DOM, no spread). Its one network
+// call is the bundle's fetchGuide(name), which is allowed only as fetchGuide(file) inside a
+// top-level function that has already checked MCP_GUIDE_FILES.indexOf(file) - a guide name never
+// comes straight from a tool argument.
+// src: mcp/newton-guides.js text. cfg: CONFIG. Returns [{ line, rule, problem }].
+function lintMcpGuideTools(src, cfg) {
+  var raw = String(src || '');
+  var st = _mcpLintStrip(raw);
+  var out = lintMcpTools(raw, cfg).filter(function (v) { return v.line !== 0; });
+  var fns = _mcpTopFunctions(st.code);
+  var re = /(^|[^\w$.])fetchGuide\s*\(\s*([^)]*)\)/g;
+  var m;
+  while ((m = re.exec(st.code)) !== null) {
+    var at = m.index + m[1].length;
+    var owner = null;
+    fns.forEach(function (f) { if (f.start <= at && at < f.end) owner = f; });
+    var arg = m[2].trim();
+    var checked = owner && st.code.slice(owner.start, at).indexOf('MCP_GUIDE_FILES.indexOf(file)') >= 0;
+    if (arg !== 'file' || !checked) {
+      out.push({ line: _mcpLineOf(st.code, at), rule: 'guide', problem: 'fetchGuide(' + arg + ') - call it only as fetchGuide(file), after MCP_GUIDE_FILES.indexOf(file) has been checked in the same function' });
+    }
+  }
+  return out.sort(function (a, b) { return a.line - b.line; });
+}

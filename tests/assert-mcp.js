@@ -9,6 +9,7 @@ var MCP_N394_TOOL_NAMES = ['bench', 'utilisation', 'project_team'];
 var MCP_N466_TOOL_NAMES = ['workforce_segmentation'];
 var MCP_N467_TOOL_NAMES = ['joiners'];
 var MCP_N535_TOOL_NAMES = ['business_goals'];
+var MCP_N547_TOOL_NAMES = ['search_guides', 'read_guide_section'];   // mcp/newton-guides.js, loaded after newton-tools.js
 
 function _mcpThrows(fn, re, label) {
   try { fn(); } catch (e) {
@@ -22,12 +23,12 @@ ASSERTIONS.push(
   {
     name: 'N-393 AC1 / N-394 AC1 MCP_TOOLS: the eight reporting tools then bench, utilisation, project_team; named handlers declared once, closed schemas, enums from CONFIG',
     fn: function () {
-      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES, MCP_N466_TOOL_NAMES, MCP_N467_TOOL_NAMES, MCP_N535_TOOL_NAMES), 'tool names and order');
+      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES, MCP_N466_TOOL_NAMES, MCP_N467_TOOL_NAMES, MCP_N535_TOOL_NAMES, MCP_N547_TOOL_NAMES), 'tool names and order');
       MCP_TOOLS.forEach(t => {
         if (!/^[a-z][a-z0-9_]{0,63}$/.test(t.name) || t.name === 'newton_status') throw new Error(`bad tool name ${t.name}`);
         if (typeof t.handler !== 'function' || !/^mcp[A-Z]\w+$/.test(t.handler.name)) throw new Error(`${t.name}: handler must be a named mcp<Name> function`);
         if (typeof MCP_SOURCES !== 'undefined') {
-          const decl = (MCP_SOURCES['newton-tools.js'].match(new RegExp('async function ' + t.handler.name + '\\(', 'g')) || []).length;
+          const decl = (MCP_SOURCES[MCP_N547_TOOL_NAMES.indexOf(t.name) >= 0 ? 'newton-guides.js' : 'newton-tools.js'].match(new RegExp('async function ' + t.handler.name + '\\(', 'g')) || []).length;
           _assertEqual(decl, 1, `${t.name}: ${t.handler.name} declared once as a top-level async function`);
         }
         if (!t.inputSchema || t.inputSchema.type !== 'object' || t.inputSchema.additionalProperties !== false) throw new Error(`${t.name}: schema must be a closed object`);
@@ -176,7 +177,7 @@ ASSERTIONS.push(
       const order = ['js/api-orgchart.js', 'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js', 'js/analytics.js'].map(f => sc.indexOf(f));
       if (order.indexOf(-1) !== -1) throw new Error('a bizgoals script is missing from CONFIG.MCP.scripts');
       for (let i = 1; i < order.length; i++) if (order[i] < order[i - 1]) throw new Error('bizgoals scripts out of dependency order');
-      _assertEqual(sc[sc.length - 1], 'mcp/newton-tools.js', 'tools load last');
+      _assertEqual(sc.slice(-2), ['mcp/newton-tools.js', 'mcp/newton-guides.js'], 'tools load last (newton-guides.js pushes onto MCP_TOOLS, so it follows newton-tools.js, N-547)');
       ['BusinessGoals', 'BusinessActions', 'BusinessGoalUpdates'].forEach(l => { if (!m.allowedLists.includes(l)) throw new Error(l + ' not in allowedLists'); });
       if (m.allowedLists.includes('PeoplePay')) throw new Error('PeoplePay must never be allowed');
       _assertEqual([m.outputDenyFields.BusinessGoals, m.outputDenyFields.BusinessActions, m.outputDenyFields.BusinessGoalUpdates],
@@ -199,7 +200,7 @@ ASSERTIONS.push(
       const sc = m.scripts;
       if (sc.indexOf('js/api-orgchart.js') === -1) throw new Error('js/api-orgchart.js missing from CONFIG.MCP.scripts');
       if (!(sc.indexOf('js/api.js') < sc.indexOf('js/api-orgchart.js') && sc.indexOf('js/api-orgchart.js') < sc.indexOf('js/analytics.js'))) throw new Error('api-orgchart.js must load after api.js and before analytics.js');
-      _assertEqual(sc[sc.length - 1], 'mcp/newton-tools.js', 'tools load last');
+      _assertEqual(sc.slice(-2), ['mcp/newton-tools.js', 'mcp/newton-guides.js'], 'tools load last (newton-guides.js pushes onto MCP_TOOLS, so it follows newton-tools.js, N-547)');
       ['MonthlyBillRate', 'RetainerFee', 'PlacementFee', 'ProratedRevenue', 'BilledRevenue', 'UserEmail'].forEach(f => {
         if (!(m.outputDenyFields.Assignments || []).includes(f)) throw new Error('outputDenyFields.Assignments lacks ' + f);
       });
@@ -315,7 +316,7 @@ var MCP_N553_ROLES = (function () {
   const all = ['admin', 'leadership', 'delivery_manager', 'talent_partner'];
   const lead = ['admin', 'leadership'];
   const out = {};
-  MCP_N553_SCOPED_TOOLS.concat(['time_to_fill']).forEach(n => { out[n] = all; });
+  MCP_N553_SCOPED_TOOLS.concat(['time_to_fill'], MCP_N547_TOOL_NAMES).forEach(n => { out[n] = all; });   // N-547: guides hold no sensitive data
   ['project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals'].forEach(n => { out[n] = lead; });
   return out;
 })();
@@ -445,6 +446,188 @@ ASSERTIONS.push(
       _mcpThrows(() => mcpResolveProject('zzz', projects), /^No project matched "zzz"/, 'no scope argument = unchanged');
       _assertEqual(mcpInScope(all, 999), true, 'unscoped is in scope');
       _assertEqual([mcpInScope(dm, 1), mcpInScope(dm, '1'), mcpInScope(dm, 2), mcpInScope(dm, '')], [true, true, false, false], 'DM in scope');
+    },
+  },
+);
+
+// ── N-547 (AMCP-3): guide tools - wiring, parsers, ranking, reading, lint ──
+// The cache and the server path (async, through the real loader) run in mcp-tools-check.js.
+var MCP_N547_HTML_GUIDES = ['user-guide.html', 'people-user-guide.html', 'sales-user-guide.html', 'market-reporting-user-guide.html', 'my-momentum-user-guide.html'];
+
+var MCP_N547_FIXTURE_HTML =
+  '<html><head><title>Test &mdash; User Guide</title><script>var x = "<div class=\\"guide-section\\" id=\\"bad\\">";</script></head><body>\n' +
+  '<div class="guide-content">\n' +
+  '<div class="guide-section" id="faq"><h2>Frequently &amp; Asked</h2>\n<p>Intro line.</p>\n' +
+  '<div class="faq-item"><div class="faq-q">Why &lt;this&gt;?</div><div class="faq-a">Because <strong>reasons</strong>.<ul><li>one</li><li>two</li></ul></div></div>\n' +
+  '<div class="faq-item"><div class="faq-q">Second?</div><div class="faq-a">Answer&nbsp;two &mdash; done.</div></div>\n</div>\n' +
+  '<div class="guide-section agent-section" id="steps"><h2>Steps</h2><p>Lead.</p><h3>First</h3><p>A.</p><h3><span class="b">Second</span></h3><p>B.</p></div>\n' +
+  '<div class="guide-section" id="plain"><h2>Plain</h2><p>Only text.</p></div>\n' +
+  '<div class="guide-section"><h2>No id</h2></div>\n' +
+  '</div></div>\n<div class="guide-footer">Footer text</div>\n<script src="x.js"></script></body></html>';
+
+var MCP_N547_FIXTURE_MD = (function () {
+  const F = '`'.repeat(3);
+  return ['# Title One', '', 'intro ignored', '', '## Alpha Section', '', 'Some **bold** [link](http://x) text.', '', '### Sub A', '', 'a body', '',
+    '### Sub B', '', 'b body', '', '## Alpha Section', '', 'dup', '', '## Changelog', '', '- v1', '', F + 'js', '## not a heading', F, '',
+    '## Last & Done (X)', '', 'end', ''].join('\n');
+})();
+
+function _mcpGuideReal() {
+  if (typeof MCP_GUIDE_TEXTS === 'undefined') _skip('Needs the real guide files - runs under node tests/run.js, not in the browser runner.');
+  if (!_mcpGuideReal.parsed) {
+    _mcpGuideReal.parsed = {};
+    MCP_GUIDE_FILES.forEach(f => { _mcpGuideReal.parsed[f] = mcpGuideParse(f, MCP_GUIDE_TEXTS[f]); });
+  }
+  return MCP_GUIDE_FILES.map(f => ({ file: f, parsed: _mcpGuideReal.parsed[f] }));
+}
+
+ASSERTIONS.push(
+  {
+    name: 'N-547 AC1 / AC2 / AC10 wiring: newton-guides.js loads after newton-tools.js, contract still 2, guideCacheTtlMs 1 hour; two read tools with the four roles and closed schemas; MCP_GUIDE_FILES equals the bundle\'s GUIDE_FILES',
+    fn: function () {
+      const m = CONFIG.MCP;
+      _assertEqual(m.scripts.slice(-2), ['mcp/newton-tools.js', 'mcp/newton-guides.js'], 'script order');
+      _assertEqual([m.contract, m.guideCacheTtlMs], [2, 3600000], 'contract + TTL');
+      _assertEqual(MCP_TOOLS.length, 16, 'sixteen tools');
+      const four = ['admin', 'leadership', 'delivery_manager', 'talent_partner'];
+      const s = MCP_TOOLS.find(t => t.name === 'search_guides');
+      const r = MCP_TOOLS.find(t => t.name === 'read_guide_section');
+      _assertEqual([Array.from(s.roles), Array.from(r.roles)], [four, four], 'roles (AMCP-A2)');
+      _assertEqual([s.inputSchema.required, r.inputSchema.required], [['query'], ['guide', 'section']], 'required');
+      _assertEqual([s.inputSchema.properties.guide.enum, r.inputSchema.properties.guide.enum], [MCP_GUIDE_FILES, MCP_GUIDE_FILES], 'guide enums');
+      _assertEqual([s.inputSchema.additionalProperties, r.inputSchema.additionalProperties], [false, false], 'closed schemas');
+      if ('write' in s || 'write' in r) throw new Error('guide tools are read only');
+      if (typeof REPO_FILES === 'undefined' || !REPO_FILES.mcpLoader) _skip('Needs the bundle source - runs under node tests/run.js.');
+      const block = /const GUIDE_FILES = \[([^\]]*)\]/.exec(REPO_FILES.mcpLoader);
+      if (!block) throw new Error('GUIDE_FILES not found in loader.js');
+      _assertEqual(block[1].match(/'([^']+)'/g).map(x => x.slice(1, -1)), MCP_GUIDE_FILES, 'MCP_GUIDE_FILES = loader GUIDE_FILES');
+    },
+  },
+  {
+    name: 'N-547 AC3 / AC4 parser fixture: sections by guide-section marker (script text ignored, no-id section counted as skipped, footer cut); FAQ items, h3 blocks, plain section; entities, bullets, tags',
+    fn: function () {
+      const p = mcpGuideParseHtml(MCP_N547_FIXTURE_HTML);
+      _assertEqual([p.title, p.skipped, p.sections.map(s => s.id)], ['Test — User Guide', 1, ['faq', 'steps', 'plain']], 'title, skipped, ids');
+      _assertEqual(p.sections[0].title, 'Frequently & Asked', 'h2 entity decoded');
+      _assertEqual(p.sections[0].chunks, [
+        { heading: null, text: 'Intro line.' },
+        { heading: 'Why <this>?', text: 'Because reasons.\n- one\n- two' },
+        { heading: 'Second?', text: 'Answer two — done.' },
+      ], 'FAQ chunks');
+      _assertEqual(p.sections[1].chunks, [{ heading: null, text: 'Lead.' }, { heading: 'First', text: 'A.' }, { heading: 'Second', text: 'B.' }], 'h3 chunks (class agent-section still a section)');
+      _assertEqual(p.sections[2].chunks, [{ heading: null, text: 'Only text.' }], 'plain section');
+      if (/Footer text|x\.js|bad/.test(JSON.stringify(p))) throw new Error('footer or script text leaked into a section');
+      _assertEqual(mcpGuideParseHtml('').sections, [], 'empty input');
+    },
+  },
+  {
+    name: 'N-547 AC3 / AC4 drift canary - the five real guides: one section per guide-section marker, every id / title / text present and unique, no tags or entities left, last section free of footer and script text, the long user-guide sections split into chunks',
+    fn: function () {
+      _mcpGuideReal();
+      MCP_N547_HTML_GUIDES.forEach(f => {
+        const html = MCP_GUIDE_TEXTS[f];
+        const p = _mcpGuideReal.parsed[f];
+        const markers = (html.match(/<div\b[^>]*class="(?:[^"]* )?guide-section(?: [^"]*)?"[^>]*>/g) || []).length;
+        _assertEqual([p.sections.length, p.skipped], [markers, 0], f + ': a section per marker, none without an id');
+        if (!/ — User Guide$/.test(p.title)) throw new Error(f + ': page title "' + p.title + '"');
+        const ids = p.sections.map(s => s.id);
+        _assertEqual(new Set(ids).size, ids.length, f + ': ids unique');
+        p.sections.forEach(s => {
+          if (!s.title || !s.text || !s.chunks.length) throw new Error(f + '#' + s.id + ': empty title, text or chunks');
+          if (/<\/?(?:div|span|p|ul|ol|li|h[1-6]|strong|em|b|i|a|code|br|table|tr|td|th)\b[^>]*>/i.test(s.text) || /&(?:amp|lt|gt|nbsp|mdash|middot|quot|#\d+);/.test(s.text)) throw new Error(f + '#' + s.id + ': tags or entities left in the text');
+        });
+        const foot = /<div\b[^>]*class="guide-footer"[^>]*>([\s\S]*?)<\/div>/.exec(html);
+        const last = p.sections[p.sections.length - 1].text;
+        if ((foot && last.indexOf(mcpGuideHtmlToText(foot[1])) >= 0) || /guide-search\.js/.test(last)) throw new Error(f + ': the last section carries the page footer or script');
+      });
+      const ug = _mcpGuideReal.parsed['user-guide.html'];
+      const faq = ug.sections.find(s => s.id === 'faq');
+      if (!faq || faq.chunks.filter(c => c.heading).length < 5) throw new Error('user-guide FAQ should split into one chunk per question');
+      const biggest = ug.sections.slice().sort((a, b) => b.text.length - a.text.length)[0];
+      if (biggest.text.length > MCP_GUIDE_READ_CAP && biggest.chunks.filter(c => c.heading).length < 2) throw new Error(biggest.id + ' is long but has no subsections to read it by');
+    },
+  },
+  {
+    name: 'N-547 AC5 markdown parser: ## sections with GitHub-style ids (duplicates numbered), ### chunks, Changelog left out, fenced ## lines are not headings, links and bold flattened; the real README parses the same way',
+    fn: function () {
+      const p = mcpGuideParseMarkdown(MCP_N547_FIXTURE_MD);
+      _assertEqual([p.title, p.sections.map(s => s.id)], ['Title One', ['alpha-section', 'alpha-section-1', 'last--done-x']], 'ids');
+      _assertEqual(p.sections[0].chunks, [{ heading: null, text: 'Some bold link text.' }, { heading: 'Sub A', text: 'a body' }, { heading: 'Sub B', text: 'b body' }], 'chunks');
+      _assertEqual(mcpGuideSlug('Development & Performance (PDP)'), 'development--performance-pdp', 'GitHub slug');
+      _assertEqual(mcpGuideUrl('README.md', 'x'), null, 'README has no anchor url');
+      const real = _mcpGuideReal.parsed ? _mcpGuideReal.parsed : (_mcpGuideReal(), _mcpGuideReal.parsed);
+      const readme = real['README.md'];
+      if (readme.sections.some(s => /changelog/i.test(s.title))) throw new Error('README Changelog must be left out');
+      if (!readme.sections.some(s => s.id === 'newton-for-claude-mcp')) throw new Error('README section "Newton for Claude (MCP)" missing');
+    },
+  },
+  {
+    name: 'N-547 AC6 search ranking over the real guides: the expected section is in the top 3 for fixed how-do-I questions; guide filter, limit, two hits per section, snippet length and urls hold; nonsense finds nothing',
+    fn: function () {
+      const all = _mcpGuideReal();
+      const top = (q, n) => mcpGuideRank(all, q, n || 5).slice(0, 3).map(h => h.guide + '#' + h.section + (h.subsection ? '/' + h.subsection : ''));
+      const has = (q, want) => { const t = top(q); if (!t.some(x => x.indexOf(want) === 0)) throw new Error('"' + q + '": expected ' + want + ' in the top 3, got ' + JSON.stringify(t)); };
+      has('log weekly activity', 'user-guide.html#activity');
+      has('change role stage', 'user-guide.html#roles-page/Updating a stage without opening the form');
+      has('export report to PDF', 'user-guide.html#report-library');
+      has('PDP goals', 'my-momentum-user-guide.html#pdp-goals-actions');
+      _assertEqual(top('how do I sign in')[0], 'user-guide.html#faq/How do I sign in?', 'sign in = the FAQ question');
+      _assertEqual(mcpGuideRank(all, 'zzzzqqqq', 5), [], 'nonsense');
+      const hits = mcpGuideRank(all, 'roles', 8);
+      _assertEqual(hits.length, 8, 'limit honoured');
+      const per = {};
+      hits.forEach(h => { const k = h.guide + '#' + h.section; per[k] = (per[k] || 0) + 1; if (per[k] > MCP_GUIDE_PER_SECTION) throw new Error('more than two hits from ' + k); });
+      const one = mcpGuideRank(all.filter(g => g.file === 'sales-user-guide.html'), 'export report', 5);
+      if (!one.length || one.some(h => h.guide !== 'sales-user-guide.html')) throw new Error('guide filter');
+      mcpGuideRank(all, 'weekly activity', 8).forEach(h => {
+        if (h.snippet.length > MCP_GUIDE_SNIPPET + 20 || !h.snippet) throw new Error('snippet length ' + h.snippet.length);
+        _assertEqual(h.url, h.guide === 'README.md' ? null : CONFIG.REDIRECT_URI + h.guide + '#' + h.section, 'url');
+        _assertEqual(Object.keys(h), ['guide', 'guideTitle', 'section', 'sectionTitle', 'subsection', 'snippet', 'url'], 'hit fields');
+      });
+      _assertEqual(mcpGuideTerms('the and'), ['the', 'and'], 'a query of only stopwords falls back to its own words');
+      _assertEqual(mcpGuideTerms('How do I sign in? Roles'), ['sign', 'role'], 'stopwords dropped, trailing s trimmed');
+    },
+  },
+  {
+    name: 'N-547 AC7 read_guide_section (pure part): a short section whole; a long one is cut with its subsection list and a note; subsection by heading or unique fragment; unknown / ambiguous sections and subsections list the valid options',
+    fn: function () {
+      const all = _mcpGuideReal();
+      const ug = all.find(g => g.file === 'user-guide.html').parsed;
+      const short = ug.sections.find(s => s.text.length < MCP_GUIDE_READ_CAP && s.chunks.length > 1);
+      const r1 = mcpGuideReadFrom('user-guide.html', ug, { section: short.id.toUpperCase() });
+      _assertEqual([r1.section, r1.text, r1.truncated], [short.id, short.text, undefined], 'short section whole (id case-insensitive)');
+      _assertEqual(r1.url, CONFIG.REDIRECT_URI + 'user-guide.html#' + short.id, 'url');
+      const long = ug.sections.find(s => s.text.length > MCP_GUIDE_READ_CAP);
+      if (!long) throw new Error('fixture: expected a user-guide section longer than the read cap');
+      const r2 = mcpGuideReadFrom('user-guide.html', ug, { section: long.id });
+      _assertEqual([r2.truncated, r2.text.length <= MCP_GUIDE_READ_CAP, r2.subsections.length > 1, /subsection/.test(r2.note)], [true, true, true, true], 'long section cut with subsections');
+      const head = long.chunks.filter(c => c.heading)[0].heading;
+      const r3 = mcpGuideReadFrom('user-guide.html', ug, { section: long.id, subsection: head.toUpperCase() });
+      _assertEqual([r3.subsection, r3.truncated], [head, undefined], 'subsection by heading');
+      const r4 = mcpGuideReadFrom('user-guide.html', ug, { section: 'faq', subsection: 'sign in' });
+      _assertEqual(r4.subsection, 'How do I sign in?', 'unique fragment');
+      _mcpThrows(() => mcpGuideReadFrom('user-guide.html', ug, { section: 'nope' }), /^No section "nope" in user-guide\.html\. Sections: .*activity \(/, 'unknown section lists the ids');
+      _mcpThrows(() => mcpGuideReadFrom('user-guide.html', ug, { section: 'faq', subsection: 'zzzz' }), /^No subsection matches "zzzz"\. Subsections: .*How do I sign in\?/, 'unknown subsection');
+      _mcpThrows(() => mcpGuideReadFrom('user-guide.html', ug, { section: 'faq', subsection: 'how' }), /^More than one subsection matches "how"\./, 'ambiguous subsection is reported, not guessed');
+    },
+  },
+  {
+    name: 'N-547 AC9 lintMcpGuideTools: mcp/newton-guides.js is clean (and F-12 dates); fetchGuide only as fetchGuide(file) after the MCP_GUIDE_FILES check; a Graph path, write call, DOM name, spread or unchecked fetchGuide is caught',
+    fn: function () {
+      if (typeof MCP_SOURCES === 'undefined') _skip('Source scan needs filesystem access - runs under node tests/run.js, not in the browser runner.');
+      const src = MCP_SOURCES['newton-guides.js'];
+      _assertEqual(lintMcpGuideTools(src, CONFIG).map(v => `${v.line} ${v.rule}: ${v.problem}`), [], 'lintMcpGuideTools on mcp/newton-guides.js');
+      const rules = s => lintMcpGuideTools(s, CONFIG).map(v => v.rule);
+      const ok = 'async function load(file) {\n  if (MCP_GUIDE_FILES.indexOf(file) < 0) throw new Error("x");\n  return fetchGuide(file);\n}\n';
+      _assertEqual(rules(ok), [], 'checked fetchGuide(file) passes');
+      _assertEqual(rules('async function h(args) {\n  return fetchGuide(args.guide);\n}\n'), ['guide'], 'a tool argument straight into fetchGuide');
+      _assertEqual(rules('async function load(file) {\n  return fetchGuide(file);\n}\n'), ['guide'], 'no MCP_GUIDE_FILES check');
+      _assertEqual(rules('async function load(file) {\n  const t = await fetchGuide(file);\n  if (MCP_GUIDE_FILES.indexOf(file) < 0) throw new Error("x");\n  return t;\n}\n'), ['guide'], 'check after the call');
+      _assertEqual(rules(ok + 'function g() { return fetch("https://x"); }\n'), ['transport'], 'direct fetch');
+      _assertEqual(rules(ok + 'function g() { return "/sites/x"; }\n'), ['graph'], 'Graph path text');
+      _assertEqual(rules(ok + 'function g() { return updateItem("Roles", 1, {}); }\n'), ['write'], 'write call');
+      _assertEqual(rules(ok + 'function g() { return document.title; }\n'), ['dom'], 'DOM name');
+      _assertEqual(rules(ok + 'function g(a) { return { ...a }; }\n'), ['spread'], 'spread');
     },
   },
 );

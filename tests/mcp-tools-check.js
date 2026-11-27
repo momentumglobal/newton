@@ -164,9 +164,9 @@ async function run() {
   async function check(name, fn) {
     try {
       await fn();
-      results.push({ name: /^N-(394|466|553)/.test(name) ? name : 'N-393 ' + name, ok: true });
+      results.push({ name: /^N-(394|466|547|553)/.test(name) ? name : 'N-393 ' + name, ok: true });
     } catch (e) {
-      results.push({ name: /^N-(394|466|553)/.test(name) ? name : 'N-393 ' + name, ok: false, message: e && e.message ? e.message : String(e) });
+      results.push({ name: /^N-(394|466|547|553)/.test(name) ? name : 'N-393 ' + name, ok: false, message: e && e.message ? e.message : String(e) });
     }
   }
   const { createLoader } = require(path.join(BOOT, 'loader.js'));
@@ -225,7 +225,7 @@ async function run() {
   const ids = rows => rows.map(r => r.roleId);
   const day = n => addDays(today, n);
 
-  await check('AC1 tools/list through the real server = newton_status + the fourteen tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
+  await check('AC1 tools/list through the real server = newton_status + the sixteen tools (fourteen data tools, then the two guide tools of N-547), all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
     const lines = [];
     const gated = serverLoader();   // N-553: gate and mcpScope both Leadership
     const auth = { ensureToken: async () => 'tok', status: () => ({ storeMode: 'test', pendingSince: null }), takeLastError: () => null,
@@ -233,7 +233,7 @@ async function run() {
     const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
     const tl = lines.find(l => l.id === 1).result.tools;
-    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals'], 'tools/list');
+    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals', 'search_guides', 'read_guide_section'], 'tools/list');
     ok(tl.every(t => t.annotations && t.annotations.readOnlyHint === true), 'a tool without readOnlyHint');
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_projects', arguments: {} } }));
     const res = lines.find(l => l.id === 2).result;
@@ -850,7 +850,7 @@ async function run() {
     eq(await refusal(none, 'project_summary', { project: 'acme' }), { code: 'MCP_REFUSED', message: UNAVAILABLE + ' Newton shows you no projects.' }, 'project tool');
   });
 
-  await check('N-553 AC10 through the real server: DM / TP tools/list = newton_status + the seven reporting reads; a People tool is refused; a hidden project answers without the "Newton couldn\'t answer" prefix', async () => {
+  await check('N-553 AC10 through the real server: DM / TP tools/list = newton_status + the seven reporting reads + the two guide tools (N-547); a People tool is refused; a hidden project answers without the "Newton couldn\'t answer" prefix', async () => {
     for (const who of [DM, TP]) {
       const p = await newLoader({ identity: who });
       const lines = [];
@@ -860,7 +860,7 @@ async function run() {
       const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'newton_status', arguments: {} } }));
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }));
-      eq(lines.find(l => l.id === 2).result.tools.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill'], who.role + ' tools/list');
+      eq(lines.find(l => l.id === 2).result.tools.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'search_guides', 'read_guide_section'], who.role + ' tools/list');
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'bench', arguments: {} } }));
       const bench = lines.find(l => l.id === 3).result;
       eq([bench.isError, bench.content[0].text], [true, `That isn't available to your Newton role (${who.role}).`], who.role + ' bench');
@@ -872,6 +872,102 @@ async function run() {
       const lpData = JSON.parse(lp.content[0].text);
       eq([lp.isError || false, lpData.count, SCOPED.test(lpData.scope)], [false, who.projectIds.length, true], who.role + ' list_projects through the server (stubbed scope survives the server\'s reload)');
     }
+  });
+
+  // ── N-547 (AMCP-3): search_guides + read_guide_section, through the real loader (localDir serves
+  // the real guide files to the bundle's fetchGuide) and the real server ──
+  const GUIDE_FIXTURE = '<html><head><title>Fixture &mdash; User Guide</title></head><body><div class="guide-content">' +
+    '<div class="guide-section" id="alpha"><h2>Alpha thing</h2><p>How to do the alpha thing in Newton.</p></div></div></body></html>';
+  const GUIDE_MSG = "Newton's guides couldn't be loaded right now. Try again in a moment.";
+
+  await check('N-547 AC2 / AC11 through the real server: Leadership, DM and TP each see both guide tools last in tools/list; search_guides then read_guide_section answer from the real guides with Pages links; no list read, no sentinel in any result', async () => {
+    for (const who of [{ email: 'chris@example.com', role: 'leadership', projectIds: [] }, DM, TP]) {
+      const p = await newLoader({ identity: who });
+      const lines = [];
+      const auth = { ensureToken: async () => 'tok', status: () => ({ storeMode: 'test', pendingSince: null }), takeLastError: () => null,
+        startSignIn: async () => ({}), currentUser: () => ({ email: who.email }), shutdown() {} };
+      const srv = createServer({ loader: p.serverLoader(), auth, write: o => lines.push(o), log: () => {} });
+      const send = async (id, method, params) => { await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id, method, params })); return lines.find(l => l.id === id).result; };
+      await send(1, 'tools/call', { name: 'newton_status', arguments: {} });
+      const names = (await send(2, 'tools/list')).tools.map(t => t.name);
+      eq(names.slice(-2), ['search_guides', 'read_guide_section'], who.role + ' guide tools last');
+      const s = await send(3, 'tools/call', { name: 'search_guides', arguments: { query: 'log weekly activity' } });
+      ok(!s.isError, who.role + ' search_guides errored: ' + s.content[0].text);
+      const sd = JSON.parse(s.content[0].text);
+      ok(sd.asOf && sd.hits.length >= 3 && sd.searched === 6, who.role + ' search result shape: ' + s.content[0].text.slice(0, 200));
+      ok(sd.hits[0].url.startsWith('https://momentumglobal.github.io/newton/user-guide.html#'), 'hit url: ' + sd.hits[0].url);
+      const r = await send(4, 'tools/call', { name: 'read_guide_section', arguments: { guide: sd.hits[0].guide, section: sd.hits[0].section } });
+      ok(!r.isError, who.role + ' read_guide_section errored: ' + r.content[0].text);
+      const rd = JSON.parse(r.content[0].text);
+      ok(rd.section === sd.hits[0].section && rd.text.length > 50 && rd.url === sd.hits[0].url, who.role + ' read result: ' + r.content[0].text.slice(0, 200));
+      eq(Array.from(new Set(p.graph.asked)), [], who.role + ': guide tools read no SharePoint list');
+      FIX.sentinels.forEach(x => ok(!s.content[0].text.includes(x) && !r.content[0].text.includes(x), who.role + ' sentinel ' + x));
+      const bad = await send(5, 'tools/call', { name: 'search_guides', arguments: { query: 'x' } });
+      eq([bad.isError, bad.content[0].text], [true, 'query must be 2 to 200 characters.'], who.role + ' refusal has no "couldn\'t answer" prefix');
+    }
+  });
+
+  await check('N-547 AC8 guide cache: no refetch within the 1-hour TTL; refetch after it; concurrent calls share one fetch; a failed refetch serves the old copy as stale; a failed first fetch stores nothing and says nothing of the URL; partial and total failure; bad arguments', async () => {
+    const p = await newLoader();
+    const g = p.L.evalInContext('globalThis');
+    const search = p.tools.find(t => t.name === 'search_guides').handler;
+    const read = p.tools.find(t => t.name === 'read_guide_section').handler;
+    let clock = 5000000;
+    let fetches = [];
+    let failFor = null;
+    g.mcpGuideNow = () => clock;
+    g.fetchGuide = async name => {
+      fetches.push(name);
+      await new Promise(r => setTimeout(r, 5));
+      if (failFor === true || (Array.isArray(failFor) && failFor.includes(name))) throw new Error('HTTP 503 https://secret.example/' + name);
+      return GUIDE_FIXTURE;
+    };
+    const ttl = p.L.config().MCP.guideCacheTtlMs;
+    eq(ttl, 3600000, 'TTL');
+    const q = { query: 'alpha thing', guide: 'user-guide.html' };
+    let r = await search(q);
+    eq([fetches, r.hits.length, r.hits[0].section, r.hits[0].guideTitle], [['user-guide.html'], 1, 'alpha', 'Fixture — User Guide'], 'first call fetches once');
+    clock += ttl - 1000;
+    await search(q); await read({ guide: 'user-guide.html', section: 'alpha' });
+    eq(fetches.length, 1, 'within the TTL: no refetch (search and read share the cache)');
+    clock += 2000;
+    await search(q);
+    eq(fetches.length, 2, 'after the TTL: refetch');
+    clock += ttl + 1;
+    fetches = [];
+    await Promise.all([search(q), search(q), read({ guide: 'user-guide.html', section: 'alpha' })]);
+    eq(fetches.length, 1, 'concurrent calls share one fetch');
+    clock += ttl + 1;
+    failFor = true;
+    r = await search(q);
+    eq([r.stale, r.hits.length], [true, 1], 'failed refetch serves the previous copy, marked stale');
+    eq((await read({ guide: 'user-guide.html', section: 'alpha' })).stale, true, 'read says stale too');
+    failFor = null;
+    clock += ttl + 1;
+    eq((await search(q)).stale, undefined, 'recovers on the next refetch');
+    p.L.evalInContext('MCP_GUIDE_CACHE = {}');
+    failFor = true;
+    try { await search(q); throw new Error('first-fetch failure resolved'); } catch (e) {
+      eq([e.message, e.code], [GUIDE_MSG, 'MCP_REFUSED'], 'plain refusal: no URL, no status');
+    }
+    eq(p.L.evalInContext('MCP_GUIDE_CACHE["user-guide.html"] || null'), null, 'a failed first fetch is not cached');
+    failFor = null;
+    ok((await search(q)).hits.length === 1, 'works once the fetch works');
+    p.L.evalInContext('MCP_GUIDE_CACHE = {}');
+    failFor = ['people-user-guide.html'];
+    r = await search({ query: 'alpha thing' });
+    eq([r.unavailable, r.searched, r.hits.length > 0], [['people-user-guide.html'], 5, true], 'partial failure answers from the rest');
+    p.L.evalInContext('MCP_GUIDE_CACHE = {}');
+    failFor = true;
+    await rejects(search({ query: 'alpha thing' }), /^Newton's guides couldn't be loaded right now/, 'every guide down');
+    failFor = null;
+    await rejects(search({ query: 'a' }), /^query must be 2 to 200 characters\.$/, 'short query');
+    await rejects(search({ query: 'alpha', guide: 'admin.html' }), /^guide must be one of: user-guide\.html/, 'unpinned guide');
+    await rejects(search({ query: 'alpha', limit: 99 }), /limit must be a whole number from 1 to 8/, 'limit');
+    await rejects(read({ guide: 'nope.html', section: 'alpha' }), /^guide must be one of/, 'read: unpinned guide');
+    await rejects(read({ guide: 'user-guide.html' }), /^section is required/, 'read: no section');
+    await rejects(read({ guide: 'user-guide.html', section: 'zzz' }), /^No section "zzz" in user-guide\.html\. Sections: alpha \(Alpha thing\)\.$/, 'read: unknown section');
+    eq(fetches.every(n => p.L.evalInContext('MCP_GUIDE_FILES').includes(n)), true, 'only pinned names were ever fetched');
   });
 
   // AC 9 + AC 10, over every result produced above (each handler ran in the DOM-less context).

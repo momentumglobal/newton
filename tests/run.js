@@ -141,6 +141,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'onboarding-team-ui.js'),   // N-502: the My Team > Onboarding page markup is asserted (declarations only; DOM only inside functions)
   path.join(JS_DIR, 'onboarding-welcome-ui.js'), // N-516: the welcome email modal (declarations + ONB_STEP_ACTION_RUN; DOM only inside the functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
+  path.join(TESTS_DIR, '..', 'mcp', 'newton-guides.js'),  // N-547: guide Q&A tools; after newton-tools.js (pushes onto MCP_TOOLS)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
   path.join(TESTS_DIR, 'lint-alias-consumers.js'),
@@ -292,12 +293,18 @@ sandbox.REPO_FILES = {
   // N-395: the leadership install guide and the bootstrap constants it must quote.
   mcpReadme: _readIfExists(path.join(ROOT_DIR, 'mcp', 'README.md')),
   mcpServerCore: _readIfExists(path.join(ROOT_DIR, 'mcp', 'bootstrap', 'server-core.js')),
+  mcpLoader: _readIfExists(path.join(ROOT_DIR, 'mcp', 'bootstrap', 'loader.js')),   // N-547: GUIDE_FILES must match MCP_GUIDE_FILES
 };
 
 // N-393: lint-mcp.js / assert-mcp.js scan the Newton for Claude tools file's source text.
 sandbox.MCP_SOURCES = {
   'newton-tools.js': fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-tools.js'), 'utf8'),
+  'newton-guides.js': fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-guides.js'), 'utf8'),   // N-547
 };
+// N-547: the real guide pages, so assert-mcp.js can run the parsers over them (the drift canary).
+sandbox.MCP_GUIDE_TEXTS = {};
+['user-guide.html', 'people-user-guide.html', 'sales-user-guide.html', 'market-reporting-user-guide.html', 'my-momentum-user-guide.html', 'README.md']
+  .forEach(f => { sandbox.MCP_GUIDE_TEXTS[f] = fs.readFileSync(path.join(ROOT_DIR, f), 'utf8'); });
 // N-546: the write tools file arrives in N-548; lintMcpWriteTools runs on it once it exists.
 if (fs.existsSync(path.join(ROOT_DIR, 'mcp', 'newton-write-tools.js'))) {
   sandbox.MCP_SOURCES['newton-write-tools.js'] = fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-write-tools.js'), 'utf8');

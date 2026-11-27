@@ -220,11 +220,12 @@ async function run() {
     // N-393 added outputDenyFields / windows / maxRows (read by mcp/newton-tools.js only; the
     // bundle ignores them, so the contract stays 1). The key set stays pinned exactly.
     // N-546 added confirmTtlMs / writeLists (read by the bundle: contract 2) and made
-    // Notifications readable (fireNotification's dedupe read, AMCP-A5).
+    // Notifications readable (fireNotification's dedupe read, AMCP-A5). N-547 added guideCacheTtlMs
+    // (read by mcp/newton-guides.js alone, so no contract bump).
     await check('AC1 CONFIG.MCP has exactly contract/scripts/allowedLists/allowedRoles/gateTtlMs/confirmTtlMs/writeLists + the N-393 outputDenyFields/windows/maxRows; contract 2 equals the bundle; writeLists inside the bundle ceiling', async () => {
       ok(realState.ok, 'live load failed: ' + realState.reason);
       const m = real.config().MCP;
-      eq(Object.keys(m), ['contract', 'scripts', 'allowedLists', 'allowedRoles', 'gateTtlMs', 'confirmTtlMs', 'writeLists', 'outputDenyFields', 'windows', 'maxRows'], 'CONFIG.MCP keys, in order');
+      eq(Object.keys(m), ['contract', 'scripts', 'allowedLists', 'allowedRoles', 'gateTtlMs', 'confirmTtlMs', 'guideCacheTtlMs', 'writeLists', 'outputDenyFields', 'windows', 'maxRows'], 'CONFIG.MCP keys, in order');
       eq([m.contract, MCP_CONTRACT, BUNDLE_VERSION], [2, 2, '2.0.0'], 'CONFIG.MCP.contract vs server-core.js MCP_CONTRACT / BUNDLE_VERSION');
       eq(Array.from(m.allowedRoles).sort(), ['admin', 'delivery_manager', 'leadership', 'talent_partner'], 'allowedRoles (N-553: DM / TP, scoped in mcp/newton-tools.js)');
       eq(m.confirmTtlMs, 300000, 'confirmTtlMs');
@@ -232,7 +233,7 @@ async function run() {
       ok(Array.from(m.allowedLists).includes('Notifications'), 'Notifications not readable (AMCP-A5)');
       Object.keys(m.writeLists).forEach(l => ok(WRITE_LIST_CEILING.includes(l), `writeLists.${l} is outside the bundle WRITE_LIST_CEILING`));
       eq(WRITE_LIST_CEILING, ['WeeklyActivity', 'Roles', 'RoleHistory', 'Notifications', 'SavedReports'], 'WRITE_LIST_CEILING (AMCP-A5)');
-      eq(m.scripts[m.scripts.length - 1], 'mcp/newton-tools.js', 'newton-tools.js loads last');
+      eq(m.scripts.slice(-2), ['mcp/newton-tools.js', 'mcp/newton-guides.js'], 'newton-tools.js, then newton-guides.js (which pushes onto MCP_TOOLS), load last');
     });
 
     await check('AC2 js/config.js + CONFIG.MCP.scripts load into one vm context with no DOM; no Node or browser globals leak in', async () => {

@@ -18,8 +18,10 @@
 //     handler:     mcpListProjects,            // a named top-level async function (tests/lint-mcp.js),
 //                                              // called (args, ctx); ctx = frozen { email, role }
 //   }
-// This file holds read tools only. Write tools (preview + commit, N-546 AMCP-A4) go in
-// mcp/newton-write-tools.js (N-548 onwards), checked by tests/lint-mcp.js lintMcpWriteTools.
+// This file holds the fourteen data read tools. Write tools (preview + commit, N-546 AMCP-A4) go in
+// mcp/newton-write-tools.js (N-548 onwards), checked by tests/lint-mcp.js lintMcpWriteTools. The two
+// guide tools (search_guides, read_guide_section; N-547) are in mcp/newton-guides.js, which loads
+// after this file and pushes onto MCP_TOOLS (checked by lintMcpGuideTools).
 //
 // Rules (N-378, specs/N-393.md):
 //   - Reads only through the api*.js getters registered in tests/lint-mcp.js (MCP_GETTER_LISTS);

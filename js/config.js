@@ -1803,6 +1803,7 @@ const CONFIG = {
   //   gateTtlMs     how long a resolved role is reused before getEffectiveRole runs again
   //                 (a confirmed write always re-resolves it).
   //   confirmTtlMs  N-546 (AMCP-A4): how long a write preview's confirm token lives.
+  //   guideCacheTtlMs  N-547 (AMCP-A11): how long mcp/newton-guides.js keeps a parsed guide before fetching it again.
   //   writeLists    N-546 (AMCP-A5): per list, the SharePoint internal field names each method
   //                 may send (create = POST, update = PATCH; no key = method refused). The shim
   //                 also needs the list in the bundle's WRITE_LIST_CEILING (loader.js), and
@@ -1824,6 +1825,7 @@ const CONFIG = {
       'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-access.js', 'js/api-people.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
       'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js',   // N-535: business_goals - CONFIG.BIZGOALS; owner candidates; bizgoalsTrackerModel; the three getters
       'js/analytics.js', 'mcp/newton-tools.js',
+      'mcp/newton-guides.js',   // N-547: search_guides + read_guide_section; after newton-tools.js (pushes onto MCP_TOOLS). No DOM, no list reads.
     ],
     allowedLists: [
       'Projects', 'Roles', 'RoleHeadcount', 'RoleHistory', 'WeeklyActivity', 'Placements',
@@ -1835,6 +1837,7 @@ const CONFIG = {
     allowedRoles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // AMCP-A1: the outer gate; DM / TP reads are scoped in mcp/newton-tools.js mcpScope() (N-553)
     gateTtlMs: 600000,   // 10 minutes
     confirmTtlMs: 300000,   // 5 minutes (AMCP-A4)
+    guideCacheTtlMs: 3600000,   // 1 hour (N-547, Chris 27 Nov 2026): a deploy reaches Claude within the hour with no Desktop restart
     writeLists: {
       WeeklyActivity: {
         create: ['ProjectIDLookupId', 'RoleIDLookupId', 'TalentPartner', 'Yeare', 'WeekNumber', 'WeekEndingDate',

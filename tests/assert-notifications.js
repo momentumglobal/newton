@@ -290,5 +290,26 @@
         _assertEqual(/notifOpen[^>]*"8"[^>]*""/.test(html) || /\["notifOpen","8",""\]/.test(html) || html.includes('"8",""'), true, 'N461 AC4 a row with no link keeps the empty link (tick-only)');
       },
     },
+    {
+      name: 'N-548 AC11 paintBell: an mcpHire hire reminder renders its body, the celebrate tone and icon, and the Add Placement link in its row action; a mutation that drops the icon is caught',
+      fn: function () {
+        if (typeof ALL_SOURCES === 'undefined') _skip('needs ALL_SOURCES (tests/run.js)');
+        const dec = s => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        const link = 'reporting.html#placements?action=addPlacement&roleId=201&projectId=101';
+        const row = { id: 9, TriggerType: 'mcpHire', Tone: 'celebrate', IsRead: false, CreatedAt: iso(), DeepLink: link,
+          Body: 'You logged 1 hire for Backend Engineer (Portugal) via Claude - record the placement.' };
+        const h = build();
+        h.mod.paintBell([row], 1);
+        const html = dec(h.st.html);
+        _assertEqual(html.includes('You logged 1 hire for Backend Engineer (Portugal) via Claude - record the placement.'), true, 'N548 AC11 the body is shown');
+        _assertEqual(html.includes('notif-tone--celebrate') && html.includes('data-lucide="party-popper"'), true, 'N548 AC11 celebrate tone and icon');
+        _assertEqual(html.includes(link), true, 'N548 AC11 the Add Placement link is in the row action, unchanged by notifDeepLinkFix');
+        _assertEqual(h.st.badge !== null, true, 'N548 AC11 an unread row shows the badge');
+        // positive control: without the celebrate icon the same assertion must fail
+        const c = build(src => src.replace("celebrate: 'party-popper'", "celebrate: 'bell'"));
+        c.mod.paintBell([row], 1);
+        _assertEqual(dec(c.st.html).includes('data-lucide="party-popper"'), false, 'N548 AC11 control: removing the celebrate icon is detected');
+      },
+    },
   );
 })();

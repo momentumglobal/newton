@@ -217,6 +217,11 @@ function kpiStripModel(roles, activity, period, placements, hc) {
   };
 }
 
+// N-554: the one source for the long-open thresholds (watch / panel and red / alert), used by the
+// dashboards, mobile and the Claude report tools.
+const LONG_OPEN_DAYS = 30;
+const LONG_OPEN_ALERT_DAYS = 45;
+
 // ── Roles Open 30+ Days and Upcoming Starters (the rows behind the two panels) ────────────
 // N-310 (S-7): days since each pipeline's OLDEST OPEN headcount (pipelineOpenDay; openSince null →
 // Roles.OpenDate fallback). Oldest first. -> [{ r, day, days }].

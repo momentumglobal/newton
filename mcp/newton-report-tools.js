@@ -171,7 +171,7 @@ async function mcpReportBuildFacts(report, scope, degraded) {
     var f = mcpFlagPick(roleFlagReasons(r, actsByRole.get(String(r.id)) || [], stageHistory, today, { openSince: hc.openSince }));
     if (f.flagged) flagged.push({ role: mcpWeeklyRoleLabel(r), stage: normaliseRoleStage(r.Stage) || null, reasons: f.reasons, daysInStage: f.daysInStage, stageBudget: f.stageBudget });
   });
-  var longOpen = longOpenPipelines(roles, hc.openSince, 30).map(function (x) {
+  var longOpen = longOpenPipelines(roles, hc.openSince, LONG_OPEN_DAYS).map(function (x) {
     return { role: mcpWeeklyRoleLabel(x.r), stage: normaliseRoleStage(x.r.Stage) || null, daysOpen: x.days };
   });
   var starters = upcomingStarterPlacements(placements).map(function (pl) {

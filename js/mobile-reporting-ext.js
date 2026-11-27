@@ -30,7 +30,7 @@ let _mRoleStage  = '';
 function mobileRoleCardHtml(r, { pending = false } = {}) {
   const openDay = pipelineOpenDay(r, _mOpenSince);
   const days = openDay ? daysOpen(openDay) : null;
-  const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
+  const daysClass = days === null ? '' : days >= LONG_OPEN_ALERT_DAYS ? 'alert' : days >= LONG_OPEN_DAYS ? 'warn' : '';
   const daysLabel = days !== null ? `${days}d open` : '';
   return `
           <div class="m-role-card${pending ? " row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : act('mobileSelectRole', Number(r.id))}>
@@ -64,8 +64,8 @@ async function mobileRenderReportingSummary(main) {
       const openDay = pipelineOpenDay(r, _mOpenSince);   // N-310: oldest open headcount
       return { r, days: openDay ? daysOpen(openDay) : null };
     });
-    const over45 = withDays.filter(x => x.days !== null && x.days >= 45).length;
-    const over30 = withDays.filter(x => x.days !== null && x.days >= 30).length;
+    const over45 = withDays.filter(x => x.days !== null && x.days >= LONG_OPEN_ALERT_DAYS).length;
+    const over30 = withDays.filter(x => x.days !== null && x.days >= LONG_OPEN_DAYS).length;
 
     // Count by stage — N-314 (S-4a): every non-terminal pipeline, Backlog +
     // On-hold included (matches Snapshots RolesByStage).

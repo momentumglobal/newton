@@ -304,7 +304,7 @@ function detailPeriodDropdown() {
 // N-310 (S-7): days since each pipeline's OLDEST OPEN headcount opened
 // (pipelineOpenDay; openSince null → Roles.OpenDate fallback).
 function renderProjectLongOpenRolesPanel(roles, tpMap = {}, openSince = null) {
-  const longOpen = longOpenPipelines(roles, openSince, 30);   // N-550: shared with the Claude report tools
+  const longOpen = longOpenPipelines(roles, openSince, LONG_OPEN_DAYS);   // N-550: shared with the Claude report tools
   if (!longOpen.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Roles Open 30+ Days</h3>
     ${emptyStateBlock({ icon: 'briefcase', message: 'No roles open 30+ days.' })}
@@ -315,7 +315,7 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}, openSince = null) {
      <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
      <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
      <td><span class='badge'>${escHtml(r.Stage)}</span></td>
-     <td>${ragTextHTML(days >= 45 ? 'red' : 'amber', days + ' days')}</td>
+     <td>${ragTextHTML(days >= LONG_OPEN_ALERT_DAYS ? 'red' : 'amber', days + ' days')}</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>

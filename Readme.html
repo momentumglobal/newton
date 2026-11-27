@@ -534,7 +534,7 @@
         <tr><td><span class="file-tag">js/forms-placement.js</span></td><td>Placement form (N-350a) — <code>renderPlacementForm()</code>, <code>submitPlacementForm()</code> (validate → build → write), post-placement follow-up prompts. reporting.html only</td></tr>
         <tr><td><span class="file-tag">js/bulk-activity.js</span></td><td>Bulk weekly activity grid (N-147) — <code>renderBulkActivityPage()</code>, <code>saveBulkActivity()</code>. A sub-view of the Weekly Activity page, not a <code>PAGES</code> entry. <strong>Must load after pages.js</strong>. Reads via <code>getWeeklyActivityForWeek()</code>, writes via <code>createItem()</code>/<code>updateItem()</code> — no Graph calls of its own. Only rows the user edited are written.</td></tr>
         <tr><td><span class="file-tag">js/dashboard-core.js</span></td><td>Shared Dashboard state, period helpers, <code>fetchDashboardData()</code> (incl. the <code>hc</code> headcount context), <code>hireKpisForPeriod()</code>. Hire / days-open maths live in analytics.js (N-310)</td></tr>
-        <tr><td><span class="file-tag">js/report-logic.js</span></td><td>Pure Report Library rules (N-550) &mdash; no network I/O, no DOM. <code>RB_PALETTE</code> (the Report Builder module list, moved here from report-builder.js), <code>reportVisibleTo()</code> (who sees which saved report; the Library and the Claude tools use the one rule), the ModuleOrder block readers (<code>reportBlocks()</code>, <code>reportLayout()</code>, <code>reportTextBlocks()</code>), text &harr; HTML for text blocks (<code>reportTextToHtml()</code> escapes first; <code>reportHtmlToText()</code>), <code>reportReplaceTextBlocks()</code>, <code>reportPeriodWindow()</code>, and the KPI strip arithmetic (<code>kpiStripModel()</code>, <code>longOpenPipelines()</code>, <code>upcomingStarterPlacements()</code>, extracted from the dashboard panels unchanged). Loaded straight after dashboard-core.js on reporting.html and market-reporting.html, and in <code>CONFIG.MCP.scripts</code>.</td><td>reportVisibleTo(), reportTextToHtml(), kpiStripModel()</td></tr>
+        <tr><td><span class="file-tag">js/report-logic.js</span></td><td>Pure Report Library rules (N-550) &mdash; no network I/O, no DOM. <code>RB_PALETTE</code> (the Report Builder module list, moved here from report-builder.js), <code>reportVisibleTo()</code> (who sees which saved report; the Library and the Claude tools use the one rule), the ModuleOrder block readers (<code>reportBlocks()</code>, <code>reportLayout()</code>, <code>reportTextBlocks()</code>), text &harr; HTML for text blocks (<code>reportTextToHtml()</code> escapes first; <code>reportHtmlToText()</code>), <code>reportReplaceTextBlocks()</code>, <code>reportPeriodWindow()</code>, and the KPI strip arithmetic (<code>kpiStripModel()</code>, <code>longOpenPipelines()</code>, <code>upcomingStarterPlacements()</code>, extracted from the dashboard panels unchanged). Also holds <code>LONG_OPEN_DAYS</code> / <code>LONG_OPEN_ALERT_DAYS</code> (N-554). Loaded straight after dashboard-core.js on reporting.html and market-reporting.html, after analytics.js on mobile.html, and in <code>CONFIG.MCP.scripts</code>.</td><td>reportVisibleTo(), reportTextToHtml(), kpiStripModel()</td></tr>
         <tr><td><span class="file-tag">js/api-reports.js</span></td><td>SavedReports reads and writes (N-550; moved out of report-builder.js unchanged): <code>getSavedReports()</code>, <code>getSavedReportById()</code>, <code>createSavedReport()</code>, <code>updateSavedReport()</code>, <code>copySavedReport()</code>. Loaded straight before report-builder.js on reporting.html, and in <code>CONFIG.MCP.scripts</code>.</td><td>getSavedReports(), updateSavedReport()</td></tr>
         <tr><td><span class="file-tag">js/dashboard-project-panels.js</span></td><td>Project Dashboard panel renderers (incl. Role Analytics panel), REPORT_PANELS registry</td></tr>
         <tr><td><span class="file-tag">js/dashboard-project.js</span></td><td>Project Dashboard entry/orchestration. N-384: the SLA panel slot (Admin / DM), outside <code>#proj-detail-grid</code> so the detail period never removes it N-477: project choice and the selector live in <code>_dashResolveProject()</code>, <code>dashProjectSelectorModel()</code> (pure) and <code>_dashSelectorHtml()</code>; the panels in <code>_dashPanelsHtml()</code>.</td></tr>
@@ -973,6 +973,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 <span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js --&gt;</span>
 <span class="code-comment">&lt;!-- then --&gt;</span>
 <span class="code-key">analytics.js</span>  <span class="code-comment">&larr; pure functions &mdash; load before the module's app file (and before <code>cc-pages.js</code> / <code>os-admin.js</code>, which call them)</span>
+<span class="code-key">report-logic.js</span>  <span class="code-comment">&larr; N-554: the long-open thresholds mobile-reporting-ext.js reads</span>
 <span class="code-key">mobile-flag.js</span>  <span class="code-comment">&larr; synchronous, like the other head scripts</span>
 <span class="code-key">mobile-app.js</span>
 <span class="code-key">mobile-pages.js</span>
@@ -1711,6 +1712,14 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">One shared long-open threshold (N-554)</div>
+        <ul>
+          <li>The 30-day (watch) and 45-day (alert) &ldquo;open too long&rdquo; thresholds are now <code>LONG_OPEN_DAYS</code> and <code>LONG_OPEN_ALERT_DAYS</code> in <code>js/report-logic.js</code>, used by the project and company Roles Open 30+ Days panels, the mobile role cards and Summary tiles, and <code>report_facts</code>. No visible change. <code>mobile.html</code> now loads <code>js/report-logic.js</code>.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>

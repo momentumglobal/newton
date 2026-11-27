@@ -83,7 +83,7 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}, openSince = 
     .filter(r => {
       if (!isOpenPipelineStage(r.Stage)) return false;
       const day = openDayOf(r);
-      return !!day && daysOpen(day) >= 30;
+      return !!day && daysOpen(day) >= LONG_OPEN_DAYS;
     })
     .sort((a, b) => {
       const pA = projectMap[String(a.ProjectIDLookupId || a.ProjectID)] || '';
@@ -103,7 +103,7 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}, openSince = 
      <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
      <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
      <td><span class='badge'>${escHtml(r.Stage)}</span></td>
-     <td>${ragTextHTML(days >= 45 ? 'red' : 'amber', days + ' days')}</td>
+     <td>${ragTextHTML(days >= LONG_OPEN_ALERT_DAYS ? 'red' : 'amber', days + ' days')}</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>

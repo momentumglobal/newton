@@ -325,10 +325,30 @@ ASSERTIONS.push(
       _assertEqual(m.openHeadcount, openHeadcountCount(I.roles.filter(function (r) { return isOpenPipelineStage(r.Stage); }), hc.headcount, hc.fillMap), 'open headcount');
       _assertEqual(kpiStripModel(I.roles, I.activity, 'quarter', I.placements, dashboardHeadcountContext(I.roles, I.placements, null)).openHeadcount, null, 'headcount read failed -> null (the strip shows a dash)');
       _assertEqual(Object.keys(m.prev), ['convPct', 'ivOfferR', 'offerPct', 'avgDays', 'onTimePct'], 'previous-period keys');
-      const lo = longOpenPipelines(I.roles, hc.openSince, 30);
+      _assertEqual([LONG_OPEN_DAYS, LONG_OPEN_ALERT_DAYS], [30, 45], 'N-554 thresholds');
+      const lo = longOpenPipelines(I.roles, hc.openSince, LONG_OPEN_DAYS);
       _assertEqual(lo.map(function (x) { return x.r.id; }), [1, 2], 'open 30+ days, oldest first');
       _assertEqual(lo.every(function (x) { return x.days >= 30; }), true, 'days');
       _assertEqual(upcomingStarterPlacements(I.placements).map(function (p) { return p.id; }), [13, 11], 'upcoming starters, soonest first; a past start is out');
+    },
+  },
+  {
+    name: 'N-554 AC2: no long-open threshold literal in the dashboards, mobile or the Claude report tools; the one source is js/report-logic.js',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('needs ALL_SOURCES (tests/run.js)');
+      const rl = ALL_SOURCES['report-logic.js'];
+      _assertEqual((rl.match(/const LONG_OPEN_DAYS = 30;/g) || []).length, 1, 'LONG_OPEN_DAYS declared once');
+      _assertEqual((rl.match(/const LONG_OPEN_ALERT_DAYS = 45;/g) || []).length, 1, 'LONG_OPEN_ALERT_DAYS declared once');
+      ['dashboard-project-panels.js', 'dashboard-company.js', 'mobile-reporting-ext.js'].forEach(function (f) {
+        const s = ALL_SOURCES[f].replace(/\/\/.*$/gm, '');
+        _assertEqual(/(>=\s*(30|45)\b|openSince,\s*30\))/.test(s), false, f + ': no 30 / 45 threshold literal');
+        _assertEqual(/LONG_OPEN_/.test(s), true, f + ' uses the constants');
+      });
+      if (typeof MCP_SOURCES !== 'undefined') {
+        const t = MCP_SOURCES['newton-report-tools.js'];
+        _assertEqual(/openSince,\s*30\)/.test(t), false, 'report tools: no 30 literal');
+        _assertEqual(/LONG_OPEN_DAYS/.test(t), true, 'report tools use the constant');
+      }
     },
   },
   {

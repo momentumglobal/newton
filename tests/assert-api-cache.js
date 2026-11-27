@@ -347,8 +347,9 @@ ASSERTIONS.push(
       _assertEqual(lintWeeklyActivityCreates(ALL_SOURCES).map(v => `${v.file}:${v.line}  ${v.text}`), [],
         'raw WeeklyActivity creates outside api.js (use createWeeklyActivity)');
       _assertEqual(countWeeklyActivityCreates(ALL_SOURCES['api.js']), 1, 'api.js: the one create inside createWeeklyActivity');
-      ['forms-weekly.js', 'bulk-activity.js', 'mobile-pages.js'].forEach(f =>
+      ['forms-weekly.js', 'mobile-pages.js', 'api-weekly.js'].forEach(f =>
         _assertEqual(ALL_SOURCES[f].includes('createWeeklyActivity(fields)'), true, f + ' writes through the wrapper'));
+      _assertEqual(ALL_SOURCES['bulk-activity.js'].includes('saveWeeklyRow({ existingId: row.existingId, fields })'), true, 'bulk-activity.js writes through saveWeeklyRow (N-548), which ends in the wrapper');
     },
   },
   {

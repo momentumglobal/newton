@@ -46,6 +46,7 @@ var MCP_GETTER_LISTS = {
   getAssignments:             ['Assignments'],
   getAnomalyAcks:             ['AnomalyAcks'],
   getTalentPartnerDisplayMap: ['UserAssignments'],
+  getTalentPartnersForProject: ['Assignments', 'UserAssignments'],   // N-548: log_weekly_activity's Talent Partner picker (the form's own set)
   getPeople:                  ['People'],            // N-394
   getSalesForecasts:          ['SalesForecasts'],    // N-394
   getCurrentAssignmentsByEmployee: ['Assignments'],  // N-394
@@ -167,6 +168,7 @@ function lintMcpTools(src, cfg) {
 // this lint stops it shipping. N-548 / N-549 / N-550 add their extracted DOM-free writers
 // (e.g. applyRoleStageChange) here, each with a reason.
 var MCP_APPROVED_WRITERS = [
+  'saveWeeklyRow',          // N-548: create-or-update one weekly row (js/api-weekly.js); the two writers below sit behind it
   'createWeeklyActivity',   // N-548: N-315 ProjectID resolve + verify/heal
   'updateItem',             // N-548: weekly edits (the nine counts + Source / SubmittedAt)
   'updateRoleWithHistory',  // N-549: Stage + RoleHistory

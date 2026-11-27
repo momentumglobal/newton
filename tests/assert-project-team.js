@@ -485,7 +485,7 @@ ASSERTIONS.push(
         ['forms-role.js', 'async function submitRoleForm(', '_roleFormValidateEdit('],
         ['forms-weekly.js', 'async function submitWeeklyForm(', "updateItem('WeeklyActivity'"],
         ['forms-placement.js', 'async function submitPlacementForm(', '_placementWriteEdit('],
-        ['bulk-activity.js', 'async function saveBulkActivity(', "updateItem('WeeklyActivity'"],
+        ['bulk-activity.js', 'async function saveBulkActivity(', 'saveWeeklyRow('],
         ['role-page.js', 'async function _rpRun(', 'await fn(v)'],
         ['project-page.js', 'async function _ppRun(', 'await fn(v)'],
         ['checklists.js', 'async function toggleChecklistItem(', 'setChecklistItemDone('],

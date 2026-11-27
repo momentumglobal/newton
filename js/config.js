@@ -1824,8 +1824,11 @@ const CONFIG = {
       'js/headcount.js', 'js/permissions.js',
       'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-access.js', 'js/api-people.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
       'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js',   // N-535: business_goals - CONFIG.BIZGOALS; owner candidates; bizgoalsTrackerModel; the three getters
+      'js/weekly-activity-logic.js', 'js/api-weekly.js',   // N-548: the weekly rules (pure) + saveWeeklyRow - log_weekly_activity calls the same code as the form and bulk grid
+      'js/notifications.js',   // N-548: fireNotification for the Hires > 0 placement prompt (AMCP-A9). Declarations + registerActions at load; no DOM until a render function runs.
       'js/analytics.js', 'mcp/newton-tools.js',
       'mcp/newton-guides.js',   // N-547: search_guides + read_guide_section; after newton-tools.js (pushes onto MCP_TOOLS). No DOM, no list reads.
+      'mcp/newton-write-tools.js',   // N-548: write tools (preview + confirm, AMCP-A4); after newton-guides.js (pushes onto MCP_TOOLS).
     ],
     allowedLists: [
       'Projects', 'Roles', 'RoleHeadcount', 'RoleHistory', 'WeeklyActivity', 'Placements',
@@ -1837,6 +1840,7 @@ const CONFIG = {
     allowedRoles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // AMCP-A1: the outer gate; DM / TP reads are scoped in mcp/newton-tools.js mcpScope() (N-553)
     gateTtlMs: 600000,   // 10 minutes
     confirmTtlMs: 300000,   // 5 minutes (AMCP-A4)
+    maxWeeklyEntries: 10,   // N-548 (AMCP-B1): most role-weeks one log_weekly_activity preview covers
     guideCacheTtlMs: 3600000,   // 1 hour (N-547, Chris 27 Nov 2026): a deploy reaches Claude within the hour with no Desktop restart
     writeLists: {
       WeeklyActivity: {

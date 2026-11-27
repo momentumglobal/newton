@@ -371,23 +371,25 @@ async function mobileSubmitActivity(rolePreselected) {
     return;
   }
 
-  const fields = {
-    RoleIDLookupId:   roleId,
-    TalentPartner:    user.email,
-    Yeare:            new Date(weekEndingRaw).getFullYear(),
-    WeekNumber:       getISOWeek(weekEndingRaw),
-    WeekEndingDate:   isoDate(weekEndingRaw),
-    Outreach:         parseInt(document.getElementById('ma-outreach').value)  || 0,
-    Responses:        parseInt(document.getElementById('ma-responses').value) || 0,
-    Screened:         parseInt(document.getElementById('ma-screened').value)  || 0,
-    Submitted:        parseInt(document.getElementById('ma-submitted').value) || 0,
-    Interview1:       parseInt(document.getElementById('ma-iv1').value)       || 0,
-    InterviewTwoPlus: parseInt(document.getElementById('ma-iv2').value)       || 0,
-    FinalInterview:   parseInt(document.getElementById('ma-final').value)     || 0,
-    Offers:           parseInt(document.getElementById('ma-offers').value)    || 0,
-    Hires:            parseInt(document.getElementById('ma-hires').value)     || 0,
-    SubmittedAt:      new Date().toISOString(),
-  };
+  // N-548: the build is weeklyFields() (weekly-activity-logic.js). The year now comes off the day
+  // string, not new Date(...).getFullYear(), which shifted a boundary day under BST (N-129).
+  const fields = weeklyFields({
+    roleId,
+    tpEmail:    user.email,
+    weekEnding: weekEndingRaw,
+    counts: {
+      Outreach:       document.getElementById('ma-outreach').value,
+      Responses:      document.getElementById('ma-responses').value,
+      Screened:       document.getElementById('ma-screened').value,
+      Submitted:      document.getElementById('ma-submitted').value,
+      Interview1:     document.getElementById('ma-iv1').value,
+      Interview2Plus: document.getElementById('ma-iv2').value,
+      FinalInterview: document.getElementById('ma-final').value,
+      Offers:         document.getElementById('ma-offers').value,
+      Hires:          document.getElementById('ma-hires').value,
+    },
+    now:        new Date().toISOString(),
+  });
 
   // N-218d: close-immediately variant -- no list is on screen behind this
   // sheet to hold a pending row, so apply() only closes the sheet and

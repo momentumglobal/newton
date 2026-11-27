@@ -89,6 +89,8 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'graph-client.js'),
   path.join(JS_DIR, 'api.js'),
   path.join(JS_DIR, 'api-access.js'),
+  path.join(JS_DIR, 'weekly-activity-logic.js'),   // N-548: the weekly-activity rules (pure; declarations only; calls tpList / getISOWeek at run time)
+  path.join(JS_DIR, 'api-weekly.js'),   // N-548: saveWeeklyRow (declarations only)
   path.join(JS_DIR, 'api-people.js'),
   path.join(JS_DIR, 'api-sla.js'),
   path.join(JS_DIR, 'api-templates.js'),
@@ -142,6 +144,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'onboarding-welcome-ui.js'), // N-516: the welcome email modal (declarations + ONB_STEP_ACTION_RUN; DOM only inside the functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-guides.js'),  // N-547: guide Q&A tools; after newton-tools.js (pushes onto MCP_TOOLS)
+  path.join(TESTS_DIR, '..', 'mcp', 'newton-write-tools.js'),  // N-548: write tools (log_weekly_activity); after newton-guides.js (pushes onto MCP_TOOLS)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
   path.join(TESTS_DIR, 'lint-alias-consumers.js'),
@@ -205,6 +208,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-mcp.js'),          // N-393 (sync checks; the handlers run in mcp-tools-check.js)
   path.join(TESTS_DIR, 'assert-md-guide.js'),     // N-401
   path.join(TESTS_DIR, 'assert-notifications.js'),   // N-425
+  path.join(TESTS_DIR, 'assert-weekly-activity.js'),   // N-548
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
   path.join(TESTS_DIR, 'assert-config-panel.js'),    // N-530
   path.join(TESTS_DIR, 'assert-bizgoals.js'),        // N-532
@@ -374,7 +378,8 @@ const mcpWatchdog = setTimeout(() => {
 }, 90000);
 (async () => {
   const mcpChecks = (await require('./mcp-bootstrap-check.js').run())
-    .concat(await require('./mcp-tools-check.js').run());
+    .concat(await require('./mcp-tools-check.js').run())
+    .concat(await require('./mcp-weekly-check.js').run());   // N-548: log_weekly_activity through the real loader + armed write shim
   clearTimeout(mcpWatchdog);
   for (const c of mcpChecks) {
     if (c.ok) {

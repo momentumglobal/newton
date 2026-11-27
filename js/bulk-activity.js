@@ -15,24 +15,17 @@
 //    `InterviewTwoPlus`; the same values read back as `Year` and
 //    `Interview2Plus` (FIELD_ALIASES.WeeklyActivity, graph-client.js). That is why
 //    BULK_COUNT_FIELDS carries readKey and writeKey separately — do not
-//    "tidy" them into one.
+//    "tidy" them into one. N-548: the nine fields, the row key, the field build and the
+//    Talent Partner pick now live in weekly-activity-logic.js, shared with the form,
+//    mobile quick-log and Newton for Claude; this file only renders and tracks dirt.
 //  * WeekEndingDate buckets on the SUNDAY, never the Friday. getWeekEnding()
 //    is the only way this file produces one.
 //  * Untouched rows are never written. Dirty tracking is the whole point of
 //    the feature (it is why N-148's carry-forward was dropped).
 
-// Nine counts, in the same order as the single-role form in forms-weekly.js.
-const BULK_COUNT_FIELDS = [
-  { readKey: 'Outreach',        writeKey: 'Outreach',         label: 'Outreach'  },
-  { readKey: 'Responses',       writeKey: 'Responses',        label: 'Responses' },
-  { readKey: 'Screened',        writeKey: 'Screened',         label: 'Screened'  },
-  { readKey: 'Submitted',       writeKey: 'Submitted',        label: 'Submitted' },
-  { readKey: 'Interview1',      writeKey: 'Interview1',       label: 'IV1'       },
-  { readKey: 'Interview2Plus',  writeKey: 'InterviewTwoPlus', label: 'IV2+'      },
-  { readKey: 'FinalInterview',  writeKey: 'FinalInterview',   label: 'Final IV'  },
-  { readKey: 'Offers',          writeKey: 'Offers',           label: 'Offers'    },
-  { readKey: 'Hires',           writeKey: 'Hires',            label: 'Hires'     },
-];
+// Nine counts, in the same order as the single-role form in forms-weekly.js (N-548: derived from
+// WEEKLY_COUNT_FIELDS in weekly-activity-logic.js, the one list).
+const BULK_COUNT_FIELDS = WEEKLY_COUNT_FIELDS.map(f => ({ readKey: f.key, writeKey: f.writeKey, label: f.label }));
 
 // Role stages that never appear in an activity picker. Sourced from
 // CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED (N-164) so the bulk grid and the
@@ -61,20 +54,8 @@ function bulkEntryAvailable() {
   return !isApp && window.innerWidth >= 768;
 }
 
-// N-147 (T-2a), moved here from api.js by N-237b (it's a pure function using
-// the shared tpList() helper, not a Graph call — never belonged in api.js).
-// Which Talent Partner a bulk-activity grid row is written against. Prefers
-// the signed-in user when they are one of the role's owners, so a TP logging
-// their own week is always attributed to them; otherwise the first listed
-// owner. Returns null when the role has NO owner — the caller must render
-// that row disabled and exclude it from the save rather than attributing
-// someone else's week to whoever happened to open the grid.
-function resolveRowTalentPartner(roleTalentPartnerValue, currentUserEmail) {
-  const list = tpList(roleTalentPartnerValue);
-  if (!list.length) return null;
-  const me = String(currentUserEmail || '').trim().toLowerCase();
-  return (me && list.includes(me)) ? me : list[0];
-}
+// N-548: resolveRowTalentPartner (which Talent Partner a grid row is written against) moved to
+// weekly-activity-logic.js, unchanged, so the Claude tool picks the same person.
 
 async function renderBulkActivityPage(weekEnding = null) {
   // Belt and braces. pages.js hides the entry button when this is false, but
@@ -121,7 +102,7 @@ async function renderBulkActivityPage(weekEnding = null) {
   weekRows.forEach(r => {
     const rid = String(r.RoleIDLookupId || r.RoleID || '');
     const tp  = String(r.TalentPartner || '').toLowerCase();
-    existingByKey[`${rid}|${tp}`] = r;
+    existingByKey[weeklyRowKey(rid, tp)] = r;
   });
 
   // N-165: getScopedRolesVisibleTo's per-project arrays can no longer contain
@@ -134,7 +115,7 @@ async function renderBulkActivityPage(weekEnding = null) {
       const roleId    = String(r.id);
       const projectId = String(r.ProjectIDLookupId || r.ProjectID || '');
       const tpEmail   = resolveRowTalentPartner(r.TalentPartner, user.email);
-      const existing  = tpEmail ? existingByKey[`${roleId}|${tpEmail}`] : null;
+      const existing  = tpEmail ? existingByKey[weeklyRowKey(roleId, tpEmail)] : null;
       const counts    = {};
       BULK_COUNT_FIELDS.forEach(f => {
         counts[f.readKey] = Number(existing && existing[f.readKey]) || 0;
@@ -303,23 +284,16 @@ function _setBulkControlsDisabled(disabled) {
 }
 
 function _bulkFieldsFor(row) {
-  const fields = {
-    ProjectIDLookupId: parseInt(row.projectId, 10),
-    RoleIDLookupId:    parseInt(row.roleId, 10),
-    TalentPartner:     row.tpEmail,
-    // The year is read off the day string itself, not via new Date().
-    // _bulkWeekEnding IS the calendar day; re-parsing it into a Date and
-    // asking for a local year is the exact shape that shifts a boundary date
-    // by a day under BST.
-    Yeare:             Number(_bulkWeekEnding.slice(0, 4)),
-    WeekNumber:        getISOWeek(_bulkWeekEnding),
-    WeekEndingDate:    isoDate(_bulkWeekEnding),
-    SubmittedAt:       new Date().toISOString(),
-  };
-  BULK_COUNT_FIELDS.forEach(f => {
-    fields[f.writeKey] = Number(row.counts[f.readKey]) || 0;
+  // N-548: the build is weeklyFields() (weekly-activity-logic.js). The year is read off the day
+  // string itself there, never via new Date() — that shifts a boundary date by a day under BST.
+  return weeklyFields({
+    projectId:  row.projectId,
+    roleId:     row.roleId,
+    tpEmail:    row.tpEmail,
+    weekEnding: _bulkWeekEnding,
+    counts:     row.counts,
+    now:        new Date().toISOString(),
   });
-  return fields;
 }
 
 async function saveBulkActivity() {
@@ -356,14 +330,10 @@ async function saveBulkActivity() {
       try {
         if (!canWriteProject(_resolvedRole, row.projectId, writableIds)) throw new Error(projectReadOnlyMessage());   // N-369
         const fields = _bulkFieldsFor(row);
-        if (row.existingId) {
-          await updateItem('WeeklyActivity', row.existingId, fields);
-        } else {
-          const created = await createWeeklyActivity(fields);
-          // Keep the new id so an immediate re-save updates this row rather
-          // than creating a second record for the same role and week.
-          if (created && created.id) row.existingId = created.id;
-        }
+        const saved = await saveWeeklyRow({ existingId: row.existingId, fields });   // N-548 (api-weekly.js)
+        // Keep the new id so an immediate re-save updates this row rather
+        // than creating a second record for the same role and week.
+        if (saved.id) row.existingId = saved.id;
         row.status = 'saved';
         row.dirty  = false;
         ok++;

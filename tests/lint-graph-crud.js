@@ -30,7 +30,6 @@ var GRAPH_CRUD_NAMES = ['getItems', 'getItem', 'createItem', 'updateItem', 'dele
 var GRAPH_CRUD_BASELINE = {
   'admin.js': 19,
   'briefing-pack.js': 1,
-  'bulk-activity.js': 1,
   'cc-pages.js': 4,
   'checklists.js': 1,
   'forms-placement.js': 9,

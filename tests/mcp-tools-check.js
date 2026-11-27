@@ -122,6 +122,15 @@ function makeGraph(lists, opts = {}) {
     const qi = rel.indexOf('?');
     const p = decodeURIComponent(qi === -1 ? rel : rel.slice(0, qi));
     const q = qi === -1 ? '' : rel.slice(qi + 1);
+    const one = /^\/sites\/[^/]+\/lists\/([^/]+)\/items\/(\d+)$/.exec(p);   // N-548: GET of one item (checkRoleWrite reads the role this way)
+    if (one) {
+      asked.push(one[1]);
+      const row = (lists[one[1]] || []).find(r => String(r.id) === one[2]);
+      if (!row) return { status: 404, body: { error: { message: 'fixture graph: no item ' + one[2] } } };
+      const fields = {};
+      Object.keys(row).forEach(k => { if (k !== 'id') fields[k] = row[k]; });
+      return { status: 200, body: { id: row.id, fields } };
+    }
     const m = /^\/sites\/[^/]+\/lists\/([^/]+)\/items(\/delta)?$/.exec(p);
     if (!m) return { status: 404, body: { error: { message: 'fixture graph: unknown path ' + p } } };
     const list = m[1];
@@ -151,6 +160,26 @@ function makeGraph(lists, opts = {}) {
     if ((o && o.method) === 'POST' && rel === '/$batch') {
       const reqs = JSON.parse(o.body).requests;
       return json({ responses: reqs.map(r => Object.assign({ id: r.id }, respond(r.url))) }, 200);
+    }
+    // N-548: POST / PATCH to one list's items (reaches here only through the armed write shim). Records the write
+    // and applies it to `lists`, so a later read sees it. opts.failWrite(list, method, fields) -> true refuses it (500).
+    const wm = /^\/sites\/[^/]+\/lists\/([^/]+)\/items(?:\/(\d+))?$/.exec(rel);
+    if (wm && o && (o.method === 'POST' || o.method === 'PATCH')) {
+      const fields = JSON.parse(o.body).fields;
+      const list = wm[1];
+      if (opts.failWrite && opts.failWrite(list, o.method, fields)) return json({ error: { message: 'fixture graph: forced write failure for ' + list } }, 500);
+      lists[list] = lists[list] || [];
+      let row;
+      if (o.method === 'POST') {
+        row = Object.assign({ id: String(9000 + (opts.writes || []).length) }, fields);
+        lists[list].push(row);
+      } else {
+        row = lists[list].find(r => String(r.id) === wm[2]);
+        if (!row) return json({ error: { message: 'fixture graph: no item ' + wm[2] } }, 404);
+        Object.assign(row, fields);
+      }
+      (opts.writes = opts.writes || []).push({ list, method: o.method, id: row.id, fields });
+      return json({ id: row.id, fields: Object.assign({}, row) }, o.method === 'POST' ? 201 : 200);
     }
     const r = respond(rel);
     return json(r.body, r.status);
@@ -233,8 +262,10 @@ async function run() {
     const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
     const tl = lines.find(l => l.id === 1).result.tools;
-    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals', 'search_guides', 'read_guide_section'], 'tools/list');
-    ok(tl.every(t => t.annotations && t.annotations.readOnlyHint === true), 'a tool without readOnlyHint');
+    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals', 'search_guides', 'read_guide_section', 'log_weekly_activity'], 'tools/list (before the role is known every tool is listed; N-548 adds the write tool last)');
+    ok(tl.filter(t => t.name !== 'log_weekly_activity').every(t => t.annotations && t.annotations.readOnlyHint === true), 'a read tool without readOnlyHint');
+    const lw = tl.find(t => t.name === 'log_weekly_activity');
+    ok(lw.annotations.readOnlyHint === false && lw.annotations.destructiveHint === true, 'log_weekly_activity is annotated as a write tool');
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_projects', arguments: {} } }));
     const res = lines.find(l => l.id === 2).result;
     ok(!res.isError, 'list_projects through the server errored: ' + res.content[0].text);
@@ -860,7 +891,7 @@ async function run() {
       const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'newton_status', arguments: {} } }));
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }));
-      eq(lines.find(l => l.id === 2).result.tools.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'search_guides', 'read_guide_section'], who.role + ' tools/list');
+      eq(lines.find(l => l.id === 2).result.tools.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'search_guides', 'read_guide_section', 'log_weekly_activity'], who.role + ' tools/list (N-548: DM / TP also get the write tool)');
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'bench', arguments: {} } }));
       const bench = lines.find(l => l.id === 3).result;
       eq([bench.isError, bench.content[0].text], [true, `That isn't available to your Newton role (${who.role}).`], who.role + ' bench');
@@ -889,7 +920,7 @@ async function run() {
       const srv = createServer({ loader: p.serverLoader(), auth, write: o => lines.push(o), log: () => {} });
       const send = async (id, method, params) => { await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id, method, params })); return lines.find(l => l.id === id).result; };
       await send(1, 'tools/call', { name: 'newton_status', arguments: {} });
-      const names = (await send(2, 'tools/list')).tools.map(t => t.name);
+      const names = (await send(2, 'tools/list')).tools.map(t => t.name).filter(n => n !== 'log_weekly_activity');   // N-548: the write tool follows the guides
       eq(names.slice(-2), ['search_guides', 'read_guide_section'], who.role + ' guide tools last');
       const s = await send(3, 'tools/call', { name: 'search_guides', arguments: { query: 'log weekly activity' } });
       ok(!s.isError, who.role + ' search_guides errored: ' + s.content[0].text);
@@ -996,4 +1027,4 @@ async function run() {
   return results;
 }
 
-module.exports = { run };
+module.exports = { run, makeGraph, loadFixtures, materialise, stubShim, addDays, localDay };   // N-548: tests/mcp-weekly-check.js reuses the fixture Graph

@@ -256,29 +256,16 @@ async function submitWeeklyForm(event, editId = null) {
   const btn  = form.querySelector('[type=submit]');
   setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
-  const fields = {
-    ProjectIDLookupId: parseInt(data.ProjectID),
-    RoleIDLookupId:    parseInt(data.RoleID),
-    TalentPartner:     data.TalentPartnerName || undefined,
-    // The year is read off the day string itself, not via new Date() — see
-    // _bulkFieldsFor in bulk-activity.js for the identical pattern.
-    // data.WeekEndingDate IS the calendar day; re-parsing it into a Date and
-    // asking for a local year is the exact shape that shifts a boundary date
-    // by a day under BST.
-    Yeare:             Number(data.WeekEndingDate.slice(0, 4)),
-    WeekNumber:        getISOWeek(data.WeekEndingDate),
-    WeekEndingDate:    isoDate(data.WeekEndingDate),
-    Outreach:          parseInt(data.Outreach) || 0,
-    Responses:         parseInt(data.Responses) || 0,
-    Screened:          parseInt(data.Screened) || 0,
-    Submitted:         parseInt(data.Submitted) || 0,
-    Interview1:        parseInt(data.Interview1) || 0,
-    InterviewTwoPlus:  parseInt(data.Interview2Plus) || 0,
-    FinalInterview:    parseInt(data.FinalInterview) || 0,
-    Offers:            parseInt(data.Offers) || 0,
-    Hires:             parseInt(data.Hires) || 0,
-    SubmittedAt:       new Date().toISOString(),
-  };
+  // N-548: the build is weeklyFields() (weekly-activity-logic.js), shared with the bulk grid, mobile
+  // quick-log and Newton for Claude. The year is read off the day string there, never via new Date().
+  const fields = weeklyFields({
+    projectId:  data.ProjectID,
+    roleId:     data.RoleID,
+    tpEmail:    data.TalentPartnerName,
+    weekEnding: data.WeekEndingDate,
+    counts:     data,
+    now:        new Date().toISOString(),
+  });
   // N-369: the write gate — fails closed.
   const gate = await checkProjectWrite(fields.ProjectIDLookupId);
   if (!gate.ok) { clearButtonLoading(btn); showFormError('weekly-form', gate.reason); return; }
@@ -305,7 +292,7 @@ async function submitWeeklyForm(event, editId = null) {
     });
     // Hire logged → offer to record a placement, prefilled with this
     // role/project; offered only after the write succeeded.
-    if (fields.Hires > 0 &&
+    if (weeklyHiresTrigger({ isCreate: true, after: fields.Hires }) &&
         await confirmModal({
           message: 'You logged a hire. Would you like to record a placement now?',
           confirmLabel: 'Record placement', cancelLabel: 'Not now',

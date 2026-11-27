@@ -48,7 +48,7 @@ var GRAPH_CRUD_BASELINE = {
   'people-invoices.js': 1,
   'people-tracker.js': 1,
   'project-page.js': 1,
-  'report-builder.js': 5,
+  'report-builder.js': 1,
   'role-page.js': 2,
 };
 

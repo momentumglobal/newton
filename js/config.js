@@ -1825,10 +1825,13 @@ const CONFIG = {
       'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-access.js', 'js/api-people.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
       'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js',   // N-535: business_goals - CONFIG.BIZGOALS; owner candidates; bizgoalsTrackerModel; the three getters
       'js/weekly-activity-logic.js', 'js/api-weekly.js',   // N-548: the weekly rules (pure) + saveWeeklyRow - log_weekly_activity calls the same code as the form and bulk grid
+      'js/dashboard-core.js',   // N-550: the report period helpers (getDetailPeriodRange, activityInDetailPeriod, activityInKpiPeriod, getPreviousPeriod, hireKpisForPeriod). Only let / const / function declarations; no DOM, no call at load.
+      'js/report-logic.js', 'js/api-reports.js',   // N-550: saved-report rules (pure) + the SavedReports reads / the one ModuleOrder write; report_facts and draft_report_narrative call the same code as Report Builder
       'js/notifications.js',   // N-548: fireNotification for the Hires > 0 placement prompt (AMCP-A9). Declarations + registerActions at load; no DOM until a render function runs.
       'js/analytics.js', 'mcp/newton-tools.js',
       'mcp/newton-guides.js',   // N-547: search_guides + read_guide_section; after newton-tools.js (pushes onto MCP_TOOLS). No DOM, no list reads.
       'mcp/newton-write-tools.js',   // N-548: write tools (preview + confirm, AMCP-A4); after newton-guides.js (pushes onto MCP_TOOLS).
+      'mcp/newton-report-tools.js',   // N-550: report_facts + draft_report_narrative; after newton-write-tools.js (reuses mcpWeeklyStale; pushes onto MCP_TOOLS).
     ],
     allowedLists: [
       'Projects', 'Roles', 'RoleHeadcount', 'RoleHistory', 'WeeklyActivity', 'Placements',
@@ -1836,12 +1839,15 @@ const CONFIG = {
       'AnomalyAcks',   // N-393: activity_summary marks acknowledged funnel flags as Data Health does. Read only; Note never returned.
       'BusinessGoals', 'BusinessActions', 'BusinessGoalUpdates',   // N-535: business_goals. Admin + Leadership lists; goal free text is returned by design (BG-D21), emails never.
       'Notifications',   // N-546 (AMCP-A5): read only for fireNotification's dedupe check (N-548 hire prompt). Never returned.
+      'SavedReports',    // N-550 (AMCP-E2): report_facts reads the report row; only its text blocks are returned, never ModuleOrder itself (outputDenyFields).
     ],
     allowedRoles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // AMCP-A1: the outer gate; DM / TP reads are scoped in mcp/newton-tools.js mcpScope() (N-553)
     gateTtlMs: 600000,   // 10 minutes
     confirmTtlMs: 300000,   // 5 minutes (AMCP-A4)
     maxWeeklyEntries: 10,   // N-548 (AMCP-B1): most role-weeks one log_weekly_activity preview covers
     maxStageMoves: 10,      // N-549 (AMCP-C1): most role moves one update_role_stage preview covers
+    maxNarrativeEdits: 6,   // N-550 (AMCP-E3): most text blocks one draft_report_narrative preview replaces
+    maxNarrativeChars: 4000,   // N-550: longest text one block may be given, and the longest existing text report_facts returns per block
     guideCacheTtlMs: 3600000,   // 1 hour (N-547, Chris 27 Nov 2026): a deploy reaches Claude within the hour with no Desktop restart
     writeLists: {
       WeeklyActivity: {
@@ -1856,6 +1862,7 @@ const CONFIG = {
       RoleHistory:   { create: ['RoleIDLookupId', 'Field', 'OldValue', 'NewValue', 'ChangedBy', 'ChangedAt', 'Source'] },
       Notifications: { create: ['Title', 'RecipientEmail', 'TriggerType', 'TriggerKey', 'Status', 'IsRead', 'Tone',
                                 'DeepLink', 'Body', 'CreatedAt'] },   // N-548 hire prompt (AMCP-A9)
+      SavedReports:  { update: ['ModuleOrder'] },   // N-550 (AMCP-E1): text-block edits on an existing report only; no create list, so no new report
     },
     outputDenyFields: {
       Projects:       ['Notes'],
@@ -1872,6 +1879,7 @@ const CONFIG = {
       BusinessActions:     ['OwnerEmail', 'AddedByEmail', 'ChangedByEmail'],   // N-535
       BusinessGoalUpdates: ['AuthorEmail'],                                    // N-535: the author is shown by name
       Notifications:       ['RecipientEmail', 'Body', 'DeepLink'],             // N-546: backstop - no tool returns Notifications rows
+      SavedReports:        ['ModuleOrder'],                                    // N-550: backstop - a Candidate Pipeline Snapshot block holds candidate values; only the text blocks are returned, as plain text
     },
     windows: {
       summaryWeeks:      13,   // project_summary hires window (default)

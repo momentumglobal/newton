@@ -40,29 +40,8 @@ const SNAP_FIELDS = [   // Candidate Pipeline Snapshot columns: [valueKey, heade
   ['offer',    'Offer'],
 ];
 
-const RB_PALETTE = [
-  // Overview — no subheading; tiles sit directly under "Add Modules"
-  { key: 'kpiStrip',         label: 'KPI Strip',                  scope: 'both',    group: 'Overview', filtered: true },
-  { key: 'roleTracker',      label: 'Pipeline Tracker',           scope: 'project', group: 'Overview' },
-  { key: 'rolesOpen30',      label: 'Roles Open 30+ Days',        scope: 'both',    group: 'Overview' },
-  // Pipeline
-  { key: 'pipelineActivity', label: 'Pipeline Activity',          scope: 'project', group: 'Pipeline', filtered: true },
-  { key: 'activityByTP',     label: 'Activity by Talent Partner', scope: 'both',    group: 'Pipeline', filtered: true },
-  { key: 'pipelineSummary',  label: 'Pipeline Summary (last 4 weeks)', scope: 'both', group: 'Pipeline' },
-  { key: 'pipelineSummaryPTD', label: 'Pipeline Summary (project to date)', scope: 'project', group: 'Pipeline' },
-  { key: 'candidateSnapshot', label: 'Candidate Pipeline Snapshot',    scope: 'project', group: 'Pipeline' },
-  // Placements & Rejections
-  { key: 'placements',       label: 'Placements',                 scope: 'both',    group: 'Placements & Rejections', filtered: true },
-  { key: 'placementsPTD',    label: 'Placements (project to date)', scope: 'project', group: 'Placements & Rejections' },
-  { key: 'spendVsBudget',    label: 'Actual Spend vs Budget',     scope: 'both',    group: 'Placements & Rejections' },
-  { key: 'upcomingStarters', label: 'Upcoming Starters',          scope: 'both',    group: 'Placements & Rejections' },
-  { key: 'rejections',       label: 'Offer Rejection Reasons',    scope: 'both',    group: 'Placements & Rejections', filtered: true },
-  // N-385: company scope only; `cap` = a CONFIG.ROLE_CAPABILITIES key the viewer must hold.
-  { key: 'slaRollup',        label: 'SLA Roll-up (last 90 days)', scope: 'company', group: 'Delivery Assurance', cap: 'slaRollupReport' },
-  // N-388: company scope only; follows the report's period; amounts only for Admin viewers (N-396).
-  { key: 'rejectionIntel',   label: 'Rejection Intelligence',     scope: 'company', group: 'Delivery Assurance', cap: 'rejectionIntelReport' },
-];
-
+// RB_PALETTE (the module tiles and their labels) lives in js/report-logic.js (N-550): one source for
+// this page and for the Newton for Claude report tools.
 async function renderReportBuilder() {
   const main  = document.getElementById('main-content');
   const role  = _resolvedRole;
@@ -903,17 +882,7 @@ async function showReportBuilderLibrary() {
 // getUserProjectIds() returns null for an admin ("all"), but admin is
 // short-circuited above, so `ids` here is only ever a real array.
 function _rbVisibleReports(reports, projectIds, email) {
-  if (_resolvedRole === 'admin') return reports;
-  const me     = (email || '').toLowerCase();
-  const ids    = projectIds || [];
-  const mine   = r => (r.ReportOwner || '').toLowerCase() === me;
-  const onProj = r => r.Scope === 'project' && ids.includes(String(r.ProjectID));
-  if (_resolvedRole === 'delivery_manager') {
-    return reports.filter(r => r.Scope === 'company' || mine(r) || onProj(r));
-  }
-  // talent_partner — project-scope only, own or assigned; Scope:'company'
-  // is excluded outright, never surfaced by ownership alone (N-244 QA finding 1).
-  return reports.filter(r => r.Scope === 'project' && (mine(r) || onProj(r)));
+  return reports.filter(r => reportVisibleTo(_resolvedRole, email, projectIds, r));   // N-550: one rule, shared with the Claude tools (js/report-logic.js)
 }
 
 // One resolver for grouping, filter options and filter matching, so all
@@ -1147,36 +1116,6 @@ async function rbDeleteReport(id, title) {
     return;
   }
   showReportBuilderLibrary();
-}
-
-// SharePoint API functions
-
-async function getSavedReports() {
-  return getItems('SavedReports');
-}
-async function getSavedReportById(id) {
-  return getItem('SavedReports', id);
-}
-async function createSavedReport(fields) {
-  return createItem('SavedReports', fields);
-}
-async function updateSavedReport(id, fields) {
-  return updateItem('SavedReports', id, fields);
-}
-
-// N-244: Title and ReportOwner are set by the caller, never copied.
-// Everything else is whitelisted — never round-trip a fetched Graph item
-// into a create (LinkTitle and friends are read-only → 403). A report has
-// no child rows, so this is a single create with no rollback sequence, same
-// as copyBriefingPack.
-const _SAVED_REPORT_COPY_FIELDS = ['Scope', 'ProjectID', 'RoleID', 'Period', 'KpiPeriod', 'ModuleOrder'];
-async function copySavedReport(id, owner) {
-  const src = await getSavedReportById(id);
-  return createSavedReport({
-    ..._pickFields(src, _SAVED_REPORT_COPY_FIELDS),
-    Title:       `${src.Title} (copy)`,
-    ReportOwner: (owner || '').toLowerCase(),
-  });
 }
 
 // N-302a: delegated actions this file owns that shared markup calls (js/actions.js).

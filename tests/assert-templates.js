@@ -68,7 +68,7 @@ ASSERTIONS.push(
       _tplNeedSources();
       const lists = [
         ['api-templates.js', /const _BRIEFING_PACK_COPY_FIELDS = \[([\s\S]*?)\];/],
-        ['report-builder.js', /const _SAVED_REPORT_COPY_FIELDS = \[([\s\S]*?)\];/],
+        ['api-reports.js', /const _SAVED_REPORT_COPY_FIELDS = \[([\s\S]*?)\];/],
       ];
       lists.forEach(([file, re]) => {
         const m = String(ALL_SOURCES[file] || '').match(re);
@@ -218,7 +218,7 @@ ASSERTIONS.push(
     name: 'N-427 AC14 no reader of BriefingPacks / SavedReports outside the known files',
     fn: function () {
       _tplNeedSources();
-      const known = ['config.js', 'api.js', 'api-templates.js', 'api-briefing.js', 'briefing-pack.js', 'report-builder.js', 'graph-client.js'];
+      const known = ['config.js', 'api.js', 'api-templates.js', 'api-briefing.js', 'briefing-pack.js', 'report-builder.js', 'api-reports.js', 'graph-client.js'];
       const re = /BriefingPacks|SavedReports|getBriefingPacks|getSavedReports/;
       const strip = s => String(s).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"])\/\/[^\n]*/g, '$1');
       const stray = Object.keys(ALL_SOURCES).filter(f => !known.includes(f) && re.test(strip(ALL_SOURCES[f])));
@@ -546,8 +546,8 @@ ASSERTIONS.push(
       _assertEqual(/_rbIncludeTitlePage \|\| _rbEditingTemplate\) \? ''/.test(_tplBody('report-builder.js', 'function rbTitlePageControlsHtml(')), true, 'no logo controls on a template');
       _assertEqual(_tplBody('report-builder.js', 'function rbRenderSnapshotBlock(').includes('snapshotTemplateNote'), true, 'Snapshot note in template mode');
       const src = String(ALL_SOURCES['report-builder.js'] || '');
-      _assertEqual((src.match(/\b(createItem|updateItem|getItem|deleteItem)\(/g) || []).length, 4, 'no new Graph call sites (the 4 pre-existing remain)');
-      _assertEqual((src.match(/=== 'admin'/g) || []).length, 2, "no new 'admin' literal (the two pre-existing remain)");
+      _assertEqual((src.match(/\b(createItem|updateItem|getItem|deleteItem)\(/g) || []).length, 1, 'no new Graph call sites (the 1 pre-existing remains; the other 3 moved to api-reports.js, N-550)');
+      _assertEqual((src.match(/=== 'admin'/g) || []).length, 1, "no new 'admin' literal (the 1 pre-existing remains; the other left with the visibility rule, which js/report-logic.js reads from CONFIG.ROLE_IDS, N-550)");
       const reg = _tplBody('report-builder.js', 'registerActions({');
       ['rbUseTemplateAction', 'rbSaveAsTemplateAction'].forEach(n =>
         _assertEqual((reg.match(new RegExp('\\b' + n + '\\b', 'g')) || []).length, 1, n + ' registered once'));

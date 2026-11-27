@@ -2,51 +2,12 @@
 // N-310: `placements` = the dashboard's all-time placements, `hc` =
 // dashboardHeadcountContext() (built here with a null headcount when absent).
 function renderKPIStrip(roles, activity, period, placements = [], hc = null) {
-  hc = hc || dashboardHeadcountContext(roles, placements, null);
-  const openPipelines = roles.filter(r => isOpenPipelineStage(r.Stage));
-  const activePipelines  = openPipelines.length;
-  // S-4: one placement = one filled headcount. Counted against `roles` so a
-  // caller passing an unscoped placements list (RB company scope) can't inflate it.
-  const roleIdSet    = new Set(roles.map(r => String(r.id)));
-  const totalHires   = placements.filter(p => roleIdSet.has(String(p.RoleIDLookupId)) || roleIdSet.has(String(p.RoleID))).length;
-  const backlogPipelines = roles.filter(r => r.Stage === 'Backlog').length;
-  const avgOpenDays  = avgOpenHeadcountDays(openPipelines, hc.headcount, hc.fillMap);
-  // N-311 (S-2): open, dated headcount on the active pipelines; "—" when the
-  // headcount read failed.
-  const openHeadcount        = openHeadcountCount(openPipelines, hc.headcount, hc.fillMap);
-  const openHeadcountDisplay = openHeadcount !== null ? openHeadcount : '—';
-  const acts      = activity.filter(a => activityInKpiPeriod(a, period));
-  const submitted = sumField(acts, 'Submitted');
-  const int1      = sumField(acts, 'Interview1');
-  const offers    = sumField(acts, 'Offers');
-  const hires     = sumField(acts, 'Hires');
-  const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) : null;
-  const ivOfferR = offers > 0    ? Math.round(int1 / offers)            : null;
-  const offerPct = offers > 0    ? Math.round((hires / offers) * 100)   : null;
-  const cur         = hireKpisForPeriod(hc.hires, 'this_' + period);
-  const avgDays     = cur ? cur.avgDays : null;
-  const onTimePct   = cur ? cur.onTimePct : null;
-  const prevPeriod = getPreviousPeriod(period);
-  const prevRange  = prevPeriod ? getDetailPeriodRange(prevPeriod) : null;
-  const prevHireKpis = hireKpisForPeriod(hc.hires, prevPeriod);
-  let prevConvPct = null, prevIvOfferR = null, prevOfferPct = null;
-  const prevAvgDays   = prevHireKpis ? prevHireKpis.avgDays : null;
-  const prevOnTimePct = prevHireKpis ? prevHireKpis.onTimePct : null;
-  if (prevRange) {
-    const prevActs = activity.filter(a => {
-      const date = a.WeekEndingDate
-        ? new Date(a.WeekEndingDate)
-        : weekEndingDate(Number(a.Year), Number(a.WeekNumber));
-      return date >= prevRange.start && date <= prevRange.end;
-    });
-    const pSubmitted = sumField(prevActs, 'Submitted');
-    const pInt1      = sumField(prevActs, 'Interview1');
-    const pOffers    = sumField(prevActs, 'Offers');
-    const pHires     = sumField(prevActs, 'Hires');
-    prevConvPct  = pSubmitted > 0 ? Math.round((pInt1 / pSubmitted) * 100) : null;
-    prevIvOfferR = pOffers > 0    ? Math.round(pInt1 / pOffers)            : null;
-    prevOfferPct = pOffers > 0    ? Math.round((pHires / pOffers) * 100)   : null;
-  }
+  // N-550: the numbers come from kpiStripModel (js/report-logic.js, shared with the Claude report tools).
+  const m = kpiStripModel(roles, activity, period, placements, hc);
+  const { activePipelines, backlogPipelines, avgOpenDays, totalHires, convPct, ivOfferR, offerPct, avgDays, onTimePct } = m;
+  const openHeadcountDisplay = m.openHeadcount !== null ? m.openHeadcount : '—';
+  const prevConvPct = m.prev.convPct, prevIvOfferR = m.prev.ivOfferR, prevOfferPct = m.prev.offerPct;
+  const prevAvgDays = m.prev.avgDays, prevOnTimePct = m.prev.onTimePct;
   const periodLabel  = period === 'month' ? 'this month' : period === 'quarter' ? 'this quarter' : 'this year';
   const convDisplay  = convPct  !== null ? convPct + '%'   : '—';
   const ivDisplay    = ivOfferR !== null ? ivOfferR + ':1' : '—';
@@ -268,10 +229,7 @@ function renderRejectionPanel(rejections, period, roles = []) {
 // ── Upcoming Starters ─────────────────────────────────────────────────
 function renderUpcomingStartersPanel(placements, roles) {
   const roleMap = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
-  const today   = new Date(); today.setHours(0,0,0,0);
-  const upcoming = placements
-    .filter(p => p.ProvisionalStartDate && new Date(p.ProvisionalStartDate) >= today)
-    .sort((a, b) => new Date(a.ProvisionalStartDate) - new Date(b.ProvisionalStartDate));
+  const upcoming = upcomingStarterPlacements(placements);   // N-550: shared with the Claude report tools
   if (!upcoming.length) return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3>${emptyStateBlock({ icon: 'calendar', message: 'No upcoming starters.' })}</div>`;
   const rows = upcoming.map(p =>
     `<tr><td>${escHtml(p.CandidateName)}</td><td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td><td>${spDateIn(p.ProvisionalStartDate) || '—'}</td></tr>`
@@ -346,16 +304,12 @@ function detailPeriodDropdown() {
 // N-310 (S-7): days since each pipeline's OLDEST OPEN headcount opened
 // (pipelineOpenDay; openSince null → Roles.OpenDate fallback).
 function renderProjectLongOpenRolesPanel(roles, tpMap = {}, openSince = null) {
-  const longOpen = roles
-    .map(r => ({ r, day: pipelineOpenDay(r, openSince) }))
-    .filter(({ r, day }) => isOpenPipelineStage(r.Stage) && day && daysOpen(day) >= 30)
-    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  const longOpen = longOpenPipelines(roles, openSince, 30);   // N-550: shared with the Claude report tools
   if (!longOpen.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Roles Open 30+ Days</h3>
     ${emptyStateBlock({ icon: 'briefcase', message: 'No roles open 30+ days.' })}
   </div>`;
-  const rows = longOpen.map(({ r, day }) => {
-    const days = daysOpen(day);
+  const rows = longOpen.map(({ r, days }) => {
     // N-257b: no whole-row tint — the Days Open cell carries the flag instead.
     return `<tr>
      <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>

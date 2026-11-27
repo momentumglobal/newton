@@ -86,8 +86,9 @@ ASSERTIONS.push(
       };
 
       // Palette: order + registry sync + no filter mark on the PTD tiles.
-      const p0 = rb.indexOf('const RB_PALETTE = [');
-      const pal = rb.slice(p0, rb.indexOf('];', p0));
+      const rl = ALL_SOURCES['report-logic.js'];   // N-550: RB_PALETTE moved to js/report-logic.js
+      const p0 = rl.indexOf('const RB_PALETTE = [');
+      const pal = rl.slice(p0, rl.indexOf('];', p0));
       const keys = Array.from(pal.matchAll(/key:\s*'(\w+)'/g)).map(m => m[1]);
       _assertEqual(keys.indexOf('placementsPTD'), keys.indexOf('placements') + 1, 'Placements (PTD) directly below Placements');
       _assertEqual(keys.indexOf('pipelineSummaryPTD'), keys.indexOf('pipelineSummary') + 1, 'Pipeline Summary (PTD) directly below Pipeline Summary');

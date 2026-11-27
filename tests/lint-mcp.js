@@ -47,6 +47,7 @@ var MCP_GETTER_LISTS = {
   getAnomalyAcks:             ['AnomalyAcks'],
   getTalentPartnerDisplayMap: ['UserAssignments'],
   getTalentPartnersForProject: ['Assignments', 'UserAssignments'],   // N-548: log_weekly_activity's Talent Partner picker (the form's own set)
+  getSavedReports:            ['SavedReports'],      // N-550: report_facts / draft_report_narrative find the saved report (the Library's own read)
   getPeople:                  ['People'],            // N-394
   getSalesForecasts:          ['SalesForecasts'],    // N-394
   getCurrentAssignmentsByEmployee: ['Assignments'],  // N-394
@@ -174,8 +175,7 @@ var MCP_APPROVED_WRITERS = [
   'updateRoleWithHistory',  // N-549: Stage + RoleHistory
   'applyRoleStageChange',   // N-549: the Stage move (gate + rule + write) the Roles page and update_role_stage share; awaits the RoleHistory row
   'fireNotification',       // N-548: the Hires > 0 placement prompt (AMCP-A9)
-  'createSavedReport',      // N-550: draft report only
-  'updateSavedReport',      // N-550
+  'updateSavedReport',      // N-550: draft_report_narrative's one write - PATCH ModuleOrder on an existing report (js/api-reports.js); no createSavedReport: Claude never creates a report
 ];
 
 // Top-level `function name(` / `async function name(` declarations in `code` (comments and

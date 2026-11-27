@@ -426,7 +426,7 @@ var FIXTURES = {
   //   Outreach 12 - open). Company activity, last 4 weeks, client only: 3 weeks, Outreach 92.
   //   Scorecard customers: Acme Bank, Bluefin Labs (internal / LCI / expired excluded).
   mcp: {
-    sentinels: ['ZZQ-', '918273', '827364', '736455', '645546', '554433', '774411', '885522', 'zzq.member@mg.co', '4.4417', 'lena.lead@mg.co', 'lee.lapsed@mg.co'],   // N-394 adds RetainerFee, PlacementFee, a staff email, a SalesForecast headcount
+    sentinels: ['ZZQ-', '918273', '827364', '736455', '645546', '554433', '774411', '885522', 'zzq.member@mg.co', '4.4417', 'lena.lead@mg.co', 'lee.lapsed@mg.co', 'ZZQ-SNAP-'],   // N-394 adds RetainerFee, PlacementFee, a staff email, a SalesForecast headcount
     lists: {
       Projects: [
         { id: '101', Title: 'Acme Bank',         ProjectType: 'Embedded', Status: 'Active', DeliveryManager: 'dm.one@mg.co', CSDName: 'Casey Director', StartDate: { d: -300 }, EndDate: { d: 300 }, Notes: 'ZZQ-NOTE-P101' },
@@ -567,6 +567,23 @@ var FIXTURES = {
       BusinessGoalUpdates: [
         { id: '1401', Title: 'u1', GoalID: 1203, UpdateText: 'Pilot slipped a week', RagAtUpdate: 'Amber', StatusAtUpdate: 'Open', AuthorEmail: 'zzq.member@mg.co', AuthorName: 'Mo Member', Created: { d: -10 } },
         { id: '1402', Title: 'u2', GoalID: 1203, UpdateText: 'Now red, contract at risk 90k', RagAtUpdate: 'Red', StatusAtUpdate: 'Open', AuthorEmail: 'zzq.member@mg.co', AuthorName: 'Mo Member', Created: { d: -2 } },
+      ],
+      // N-550: Report Library rows. ModuleOrder is the builder's JSON. 1501 / 1503 share a title across projects (ambiguity);
+      // 1501 has two text blocks (t1 before the KPI strip, t2 after the Pipeline Summary) and a Snapshot block that carries a
+      // candidate-like sentinel the tools must never return; 1504 is company scope, 1505 a template, 1506 has no text block.
+      SavedReports: [
+        { id: '1501', Title: 'Weekly Report', Scope: 'project', ProjectID: '101', RoleID: 'all', Period: 'this_year', KpiPeriod: 'quarter', ReportOwner: 'tp.one@mg.co',
+          ModuleOrder: JSON.stringify([{ type: 'titlePage' }, { id: 't1', type: 'text', content: '<h3>Summary</h3><p>Last week: 4 submissions &amp; 1 interview.</p><ul><li>Backend Engineer sourcing</li></ul>' }, { id: 'p1', type: 'panel', key: 'kpiStrip' }, { id: 'p2', type: 'panel', key: 'pipelineSummary' }, { id: 't2', type: 'text', content: '<p>Next steps: <b>chase</b> the shortlist.</p>' }, { id: 'p3', type: 'panel', key: 'candidateSnapshot', rows: [{ name: 'ZZQ-SNAP-NAME', stage: 'Interview 1' }] }]) },
+        { id: '1502', Title: 'Monthly Review', Scope: 'project', ProjectID: '101', RoleID: '', Period: 'this_month', KpiPeriod: 'month', ReportOwner: 'dm.one@mg.co',
+          ModuleOrder: JSON.stringify([{ id: 'm1', type: 'text', content: '<p>Monthly view.</p>' }, { id: 'm2', type: 'panel', key: 'rolesOpen30' }]) },
+        { id: '1503', Title: 'Weekly Report', Scope: 'project', ProjectID: '102', RoleID: '206', Period: 'this_year', KpiPeriod: 'quarter', ReportOwner: 'dm.one@mg.co',
+          ModuleOrder: JSON.stringify([{ id: 'b1', type: 'text', content: '<p>Bluefin note.</p>' }, { id: 'b2', type: 'panel', key: 'pipelineSummary' }]) },
+        { id: '1504', Title: 'Company Overview', Scope: 'company', ProjectID: '', RoleID: '', Period: 'this_quarter', KpiPeriod: 'quarter', ReportOwner: 'chris@example.com',
+          ModuleOrder: JSON.stringify([{ id: 'c1', type: 'text', content: '<p>Company wide.</p>' }, { id: 'c2', type: 'panel', key: 'kpiStrip' }]) },
+        { id: '1505', Title: 'Weekly template', Scope: 'project', ProjectID: '', RoleID: '', Period: 'this_week', KpiPeriod: 'quarter', ReportOwner: 'chris@example.com', IsTemplate: true, TemplateName: 'Weekly template',
+          ModuleOrder: JSON.stringify([{ id: 'x1', type: 'text', content: '<p>Template text.</p>' }]) },
+        { id: '1506', Title: 'Panels Only', Scope: 'project', ProjectID: '101', RoleID: '', Period: 'this_quarter', KpiPeriod: 'quarter', ReportOwner: 'dm.one@mg.co',
+          ModuleOrder: JSON.stringify([{ id: 'n1', type: 'panel', key: 'kpiStrip' }]) },
       ],
       AnomalyAcks: [
         { id: '901', Title: 'funnel · 209', CheckType: 'funnel', SubjectKey: '209', Signature: 'Offers:2>Interview1:1', Note: 'ZZQ-ACKNOTE', AcknowledgedBy: 'dm.one@mg.co', AcknowledgedAt: '2026-10-01T09:00:00Z', Status: 'active' },

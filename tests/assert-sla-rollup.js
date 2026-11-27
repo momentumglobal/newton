@@ -180,7 +180,7 @@
       fn: function () {
         if (typeof ALL_SOURCES === 'undefined') _skip('source scan needs the filesystem (node tests/run.js)');
         const S = ALL_SOURCES, rb = S['report-builder.js'], pp = S['dashboard-project-panels.js'];
-        _assertEqual(/key: 'slaRollup'[^}]*scope: 'company'[^}]*group: 'Delivery Assurance'[^}]*cap: 'slaRollupReport'/.test(rb), true, 'AC12 palette entry: company scope, own group, capability');
+        _assertEqual(/key: 'slaRollup'[^}]*scope: 'company'[^}]*group: 'Delivery Assurance'[^}]*cap: 'slaRollupReport'/.test(S['report-logic.js']), true, 'AC12 palette entry: company scope, own group, capability');
         _assertEqual(/\.filter\(m => !m\.cap \|\| roleCan\(_resolvedRole, m\.cap\)\)/.test(rb), true, 'AC12 tile hidden without the capability');
         const fetchBody = body(rb, 'async function rbFetchData(');
         const projectBranch = fetchBody.slice(0, fetchBody.indexOf('} else {'));

@@ -140,7 +140,7 @@ ASSERTIONS.push(
       var at = function (n) { return sc.indexOf(n); };
       _assertEqual(at('js/weekly-activity-logic.js') > at('js/utils.js') && at('js/api-weekly.js') > at('js/api.js') && at('js/api-weekly.js') > at('js/weekly-activity-logic.js'), true, 'logic after utils.js, save after api.js and the logic');
       _assertEqual(at('js/notifications.js') > at('js/api-weekly.js') && at('js/notifications.js') < at('mcp/newton-tools.js'), true, 'notifications.js (fireNotification) is loaded for the hire prompt, before the tools');
-      _assertEqual(at('mcp/newton-write-tools.js') === sc.length - 1, true, 'the write tools load last');
+      _assertEqual(at('mcp/newton-write-tools.js') === sc.length - 2 && at('mcp/newton-report-tools.js') === sc.length - 1, true, 'the write tools load last, then the report tools (N-550)');
       ['reporting.html', 'mobile.html'].forEach(function (h) {
         var html = ALL_HTML[h];
         var a = html.indexOf('js/weekly-activity-logic.js'), b = html.indexOf('js/api-weekly.js');

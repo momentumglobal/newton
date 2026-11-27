@@ -278,7 +278,7 @@
         _assertEqual(/catch \(e\)/.test(mount) && !/rejectionIntelUnavailableHtml/.test(mount), true, 'AC12 a failed read leaves the slot empty, no error text');
         _assertEqual(/dataset\.token/.test(mount), true, 'AC12 a stale result is dropped');
         _assertEqual(body(pp, 'function renderRejectionPanel(').indexOf('rejectionIntel') === -1, true, 'AC12 renderRejectionPanel untouched');
-        _assertEqual(/key: 'rejectionIntel'[^}]*scope: 'company'[^}]*group: 'Delivery Assurance'[^}]*cap: 'rejectionIntelReport'/.test(rb), true, 'AC13 palette entry: company scope, own group, capability');
+        _assertEqual(/key: 'rejectionIntel'[^}]*scope: 'company'[^}]*group: 'Delivery Assurance'[^}]*cap: 'rejectionIntelReport'/.test(S['report-logic.js']), true, 'AC13 palette entry: company scope, own group, capability');
         const fetchBody = body(rb, 'async function rbFetchData(');
         const projectBranch = fetchBody.slice(0, fetchBody.indexOf('} else {'));
         _assertEqual(projectBranch.indexOf('rejectionIntel') === -1 && projectBranch.indexOf('RejectionIntel') === -1, true, 'AC13 project scope never reads it');

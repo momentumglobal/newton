@@ -10,7 +10,8 @@ var MCP_N466_TOOL_NAMES = ['workforce_segmentation'];
 var MCP_N467_TOOL_NAMES = ['joiners'];
 var MCP_N535_TOOL_NAMES = ['business_goals'];
 var MCP_N547_TOOL_NAMES = ['search_guides', 'read_guide_section'];   // mcp/newton-guides.js, loaded after newton-tools.js
-var MCP_N548_TOOL_NAMES = ['log_weekly_activity', 'update_role_stage'];   // mcp/newton-write-tools.js, loaded after newton-guides.js (the write tools: N-548, N-549)
+var MCP_N550_TOOL_NAMES = ['report_facts', 'draft_report_narrative'];   // mcp/newton-report-tools.js, loaded after newton-write-tools.js (N-550: one read tool, one write tool)
+var MCP_N548_TOOL_NAMES = ['log_weekly_activity', 'update_role_stage', 'draft_report_narrative'];   // mcp/newton-write-tools.js, loaded after newton-guides.js (the write tools: N-548, N-549)
 
 function _mcpThrows(fn, re, label) {
   try { fn(); } catch (e) {
@@ -24,12 +25,12 @@ ASSERTIONS.push(
   {
     name: 'N-393 AC1 / N-394 AC1 MCP_TOOLS: the eight reporting tools then bench, utilisation, project_team; named handlers declared once, closed schemas, enums from CONFIG',
     fn: function () {
-      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES, MCP_N466_TOOL_NAMES, MCP_N467_TOOL_NAMES, MCP_N535_TOOL_NAMES, MCP_N547_TOOL_NAMES, MCP_N548_TOOL_NAMES), 'tool names and order');
+      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES, MCP_N466_TOOL_NAMES, MCP_N467_TOOL_NAMES, MCP_N535_TOOL_NAMES, MCP_N547_TOOL_NAMES, ['log_weekly_activity', 'update_role_stage'], MCP_N550_TOOL_NAMES), 'tool names and order');
       MCP_TOOLS.filter(t => MCP_N548_TOOL_NAMES.indexOf(t.name) === -1).forEach(t => {   // the write tool has its own shape checks (N-548)
         if (!/^[a-z][a-z0-9_]{0,63}$/.test(t.name) || t.name === 'newton_status') throw new Error(`bad tool name ${t.name}`);
         if (typeof t.handler !== 'function' || !/^mcp[A-Z]\w+$/.test(t.handler.name)) throw new Error(`${t.name}: handler must be a named mcp<Name> function`);
         if (typeof MCP_SOURCES !== 'undefined') {
-          const decl = (MCP_SOURCES[MCP_N547_TOOL_NAMES.indexOf(t.name) >= 0 ? 'newton-guides.js' : 'newton-tools.js'].match(new RegExp('async function ' + t.handler.name + '\\(', 'g')) || []).length;
+          const decl = (MCP_SOURCES[MCP_N547_TOOL_NAMES.indexOf(t.name) >= 0 ? 'newton-guides.js' : MCP_N550_TOOL_NAMES.indexOf(t.name) >= 0 ? 'newton-report-tools.js' : 'newton-tools.js'].match(new RegExp('async function ' + t.handler.name + '\\(', 'g')) || []).length;
           _assertEqual(decl, 1, `${t.name}: ${t.handler.name} declared once as a top-level async function`);
         }
         if (!t.inputSchema || t.inputSchema.type !== 'object' || t.inputSchema.additionalProperties !== false) throw new Error(`${t.name}: schema must be a closed object`);
@@ -178,7 +179,7 @@ ASSERTIONS.push(
       const order = ['js/api-orgchart.js', 'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js', 'js/analytics.js'].map(f => sc.indexOf(f));
       if (order.indexOf(-1) !== -1) throw new Error('a bizgoals script is missing from CONFIG.MCP.scripts');
       for (let i = 1; i < order.length; i++) if (order[i] < order[i - 1]) throw new Error('bizgoals scripts out of dependency order');
-      _assertEqual(sc.slice(-3), ['mcp/newton-tools.js', 'mcp/newton-guides.js', 'mcp/newton-write-tools.js'], 'tools load last (newton-guides.js then newton-write-tools.js push onto MCP_TOOLS, so they follow newton-tools.js, N-547 / N-548)');
+      _assertEqual(sc.slice(-3), ['mcp/newton-guides.js', 'mcp/newton-write-tools.js', 'mcp/newton-report-tools.js'], 'tools load last (newton-guides.js, newton-write-tools.js then newton-report-tools.js push onto MCP_TOOLS, so they follow newton-tools.js, N-547 / N-548 / N-550)');
       ['BusinessGoals', 'BusinessActions', 'BusinessGoalUpdates'].forEach(l => { if (!m.allowedLists.includes(l)) throw new Error(l + ' not in allowedLists'); });
       if (m.allowedLists.includes('PeoplePay')) throw new Error('PeoplePay must never be allowed');
       _assertEqual([m.outputDenyFields.BusinessGoals, m.outputDenyFields.BusinessActions, m.outputDenyFields.BusinessGoalUpdates],
@@ -201,7 +202,7 @@ ASSERTIONS.push(
       const sc = m.scripts;
       if (sc.indexOf('js/api-orgchart.js') === -1) throw new Error('js/api-orgchart.js missing from CONFIG.MCP.scripts');
       if (!(sc.indexOf('js/api.js') < sc.indexOf('js/api-orgchart.js') && sc.indexOf('js/api-orgchart.js') < sc.indexOf('js/analytics.js'))) throw new Error('api-orgchart.js must load after api.js and before analytics.js');
-      _assertEqual(sc.slice(-3), ['mcp/newton-tools.js', 'mcp/newton-guides.js', 'mcp/newton-write-tools.js'], 'tools load last (newton-guides.js then newton-write-tools.js push onto MCP_TOOLS, so they follow newton-tools.js, N-547 / N-548)');
+      _assertEqual(sc.slice(-3), ['mcp/newton-guides.js', 'mcp/newton-write-tools.js', 'mcp/newton-report-tools.js'], 'tools load last (newton-guides.js, newton-write-tools.js then newton-report-tools.js push onto MCP_TOOLS, so they follow newton-tools.js, N-547 / N-548 / N-550)');
       ['MonthlyBillRate', 'RetainerFee', 'PlacementFee', 'ProratedRevenue', 'BilledRevenue', 'UserEmail'].forEach(f => {
         if (!(m.outputDenyFields.Assignments || []).includes(f)) throw new Error('outputDenyFields.Assignments lacks ' + f);
       });
@@ -321,6 +322,8 @@ var MCP_N553_ROLES = (function () {
   ['project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals'].forEach(n => { out[n] = lead; });
   out.log_weekly_activity = ['admin', 'delivery_manager', 'talent_partner'];   // N-548 (AMCP-A2): Leadership is read-only
   out.update_role_stage = ['admin', 'delivery_manager', 'talent_partner'];     // N-549 (AMCP-A2): the same
+  out.report_facts = ['admin', 'delivery_manager', 'talent_partner'];          // N-550 (AMCP-A2): the Report Library has no Leadership role
+  out.draft_report_narrative = ['admin', 'delivery_manager', 'talent_partner'];   // N-550 (AMCP-A2): Leadership is read-only
   return out;
 })();
 
@@ -343,7 +346,7 @@ ASSERTIONS.push(
       _assertEqual(m.allowedLists.includes('Notifications'), true, 'Notifications readable for fireNotification dedupe');
       ['RecipientEmail', 'Body', 'DeepLink'].forEach(f => { if (!(m.outputDenyFields.Notifications || []).includes(f)) throw new Error('outputDenyFields.Notifications lacks ' + f); });
       _assertEqual(m.confirmTtlMs, 300000, 'confirmTtlMs');
-      _assertEqual(Object.keys(m.writeLists), ['WeeklyActivity', 'Roles', 'RoleHistory', 'Notifications'], 'writeLists lists (SavedReports joins in N-550)');
+      _assertEqual(Object.keys(m.writeLists), ['WeeklyActivity', 'Roles', 'RoleHistory', 'Notifications', 'SavedReports'], 'writeLists lists (SavedReports joined in N-550)');
       Object.keys(m.writeLists).forEach(list => {
         const spec = m.writeLists[list];
         Object.keys(spec).forEach(k => {
@@ -493,9 +496,9 @@ ASSERTIONS.push(
     name: 'N-547 AC1 / AC2 / AC10 wiring: newton-guides.js loads after newton-tools.js, contract still 2, guideCacheTtlMs 1 hour; two read tools with the four roles and closed schemas; MCP_GUIDE_FILES equals the bundle\'s GUIDE_FILES',
     fn: function () {
       const m = CONFIG.MCP;
-      _assertEqual(m.scripts.slice(-3), ['mcp/newton-tools.js', 'mcp/newton-guides.js', 'mcp/newton-write-tools.js'], 'script order');
+      _assertEqual(m.scripts.slice(-3), ['mcp/newton-guides.js', 'mcp/newton-write-tools.js', 'mcp/newton-report-tools.js'], 'script order');
       _assertEqual([m.contract, m.guideCacheTtlMs], [2, 3600000], 'contract + TTL');
-      _assertEqual(MCP_TOOLS.length, 18, 'sixteen read tools + log_weekly_activity (N-548) + update_role_stage (N-549)');
+      _assertEqual(MCP_TOOLS.length, 20, 'seventeen read tools + log_weekly_activity (N-548) + update_role_stage (N-549) + draft_report_narrative (N-550)');
       const four = ['admin', 'leadership', 'delivery_manager', 'talent_partner'];
       const s = MCP_TOOLS.find(t => t.name === 'search_guides');
       const r = MCP_TOOLS.find(t => t.name === 'read_guide_section');

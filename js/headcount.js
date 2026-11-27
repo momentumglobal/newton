@@ -454,6 +454,13 @@ function reopenStageOptions() {
   return CONFIG.ROLE_STAGES.filter(s => !CONFIG.ROLE_STAGE_TERMINAL.includes(s));
 }
 
+// N-549 (AMCP-C3): the linear pipeline, Backlog … Offered, in ROLE_STAGES order — the stages
+// update_role_stage (Newton for Claude) moves a role between. ROLE_STAGES minus the terminal and
+// branch stages; derived, never a literal.
+function linearRoleStages() {
+  return CONFIG.ROLE_STAGES.filter(s => !CONFIG.ROLE_STAGE_TERMINAL.includes(s) && !CONFIG.ROLE_STAGES_BRANCH.includes(s));
+}
+
 // '# of Headcount' input → integer in 1..CONFIG.HEADCOUNT.maxPerAdd.
 function clampHeadcountCount(v) {
   const n = Math.floor(Number(v));

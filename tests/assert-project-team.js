@@ -471,9 +471,9 @@ ASSERTIONS.push(
     name: 'N-369 source guards — every write path re-checks the project before its first write (AC9)',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js.');
-      const GUARD = /\b(checkProjectWrite|checkRoleWrites?|_coeWriteOk|_bpCheckWrite|getUserWritableProjectIds)\(/;
+      const GUARD = /\b(checkProjectWrite|checkRoleWrites?|checkRoleStageMove|_coeWriteOk|_bpCheckWrite|getUserWritableProjectIds)\(/;   // N-549: checkRoleStageMove opens with checkRoleWrite
       const sites = [
-        ['pages.js', 'async function updateRoleStage(', 'updateRoleWithHistory('],
+        ['pages.js', 'async function updateRoleStage(', 'applyRoleStageChange('],   // N-549: checked with checkRoleStageMove, written through applyRoleStageChange
         ['pages.js', 'async function scrollToAndUnlockStage(', 'unlockStageEdit('],
         ['pages.js', 'async function showEditRoleForm(', 'renderRoleForm('],
         ['pages.js', 'async function showEditActivityForm(', 'renderWeeklyActivityForm('],

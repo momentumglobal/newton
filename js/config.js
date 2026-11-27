@@ -1841,6 +1841,7 @@ const CONFIG = {
     gateTtlMs: 600000,   // 10 minutes
     confirmTtlMs: 300000,   // 5 minutes (AMCP-A4)
     maxWeeklyEntries: 10,   // N-548 (AMCP-B1): most role-weeks one log_weekly_activity preview covers
+    maxStageMoves: 10,      // N-549 (AMCP-C1): most role moves one update_role_stage preview covers
     guideCacheTtlMs: 3600000,   // 1 hour (N-547, Chris 27 Nov 2026): a deploy reaches Claude within the hour with no Desktop restart
     writeLists: {
       WeeklyActivity: {

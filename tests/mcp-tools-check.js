@@ -262,10 +262,12 @@ async function run() {
     const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
     const tl = lines.find(l => l.id === 1).result.tools;
-    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals', 'search_guides', 'read_guide_section', 'log_weekly_activity'], 'tools/list (before the role is known every tool is listed; N-548 adds the write tool last)');
-    ok(tl.filter(t => t.name !== 'log_weekly_activity').every(t => t.annotations && t.annotations.readOnlyHint === true), 'a read tool without readOnlyHint');
-    const lw = tl.find(t => t.name === 'log_weekly_activity');
-    ok(lw.annotations.readOnlyHint === false && lw.annotations.destructiveHint === true, 'log_weekly_activity is annotated as a write tool');
+    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals', 'search_guides', 'read_guide_section', 'log_weekly_activity', 'update_role_stage'], 'tools/list (before the role is known every tool is listed; N-548 / N-549 add the write tools last)');
+    ok(tl.filter(t => t.name !== 'log_weekly_activity' && t.name !== 'update_role_stage').every(t => t.annotations && t.annotations.readOnlyHint === true), 'a read tool without readOnlyHint');
+    ['log_weekly_activity', 'update_role_stage'].forEach(n => {
+      const w = tl.find(t => t.name === n);
+      ok(w.annotations.readOnlyHint === false && w.annotations.destructiveHint === true, n + ' is annotated as a write tool');
+    });
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_projects', arguments: {} } }));
     const res = lines.find(l => l.id === 2).result;
     ok(!res.isError, 'list_projects through the server errored: ' + res.content[0].text);
@@ -891,7 +893,7 @@ async function run() {
       const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'newton_status', arguments: {} } }));
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }));
-      eq(lines.find(l => l.id === 2).result.tools.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'search_guides', 'read_guide_section', 'log_weekly_activity'], who.role + ' tools/list (N-548: DM / TP also get the write tool)');
+      eq(lines.find(l => l.id === 2).result.tools.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'search_guides', 'read_guide_section', 'log_weekly_activity', 'update_role_stage'], who.role + ' tools/list (N-548 / N-549: DM / TP also get the write tools)');
       await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'bench', arguments: {} } }));
       const bench = lines.find(l => l.id === 3).result;
       eq([bench.isError, bench.content[0].text], [true, `That isn't available to your Newton role (${who.role}).`], who.role + ' bench');
@@ -920,7 +922,7 @@ async function run() {
       const srv = createServer({ loader: p.serverLoader(), auth, write: o => lines.push(o), log: () => {} });
       const send = async (id, method, params) => { await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id, method, params })); return lines.find(l => l.id === id).result; };
       await send(1, 'tools/call', { name: 'newton_status', arguments: {} });
-      const names = (await send(2, 'tools/list')).tools.map(t => t.name).filter(n => n !== 'log_weekly_activity');   // N-548: the write tool follows the guides
+      const names = (await send(2, 'tools/list')).tools.map(t => t.name).filter(n => n !== 'log_weekly_activity' && n !== 'update_role_stage');   // N-548 / N-549: the write tools follow the guides
       eq(names.slice(-2), ['search_guides', 'read_guide_section'], who.role + ' guide tools last');
       const s = await send(3, 'tools/call', { name: 'search_guides', arguments: { query: 'log weekly activity' } });
       ok(!s.isError, who.role + ' search_guides errored: ' + s.content[0].text);

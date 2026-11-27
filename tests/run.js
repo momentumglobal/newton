@@ -209,6 +209,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-md-guide.js'),     // N-401
   path.join(TESTS_DIR, 'assert-notifications.js'),   // N-425
   path.join(TESTS_DIR, 'assert-weekly-activity.js'),   // N-548
+  path.join(TESTS_DIR, 'assert-role-stage.js'),        // N-549
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
   path.join(TESTS_DIR, 'assert-config-panel.js'),    // N-530
   path.join(TESTS_DIR, 'assert-bizgoals.js'),        // N-532
@@ -379,7 +380,8 @@ const mcpWatchdog = setTimeout(() => {
 (async () => {
   const mcpChecks = (await require('./mcp-bootstrap-check.js').run())
     .concat(await require('./mcp-tools-check.js').run())
-    .concat(await require('./mcp-weekly-check.js').run());   // N-548: log_weekly_activity through the real loader + armed write shim
+    .concat(await require('./mcp-weekly-check.js').run())   // N-548: log_weekly_activity through the real loader + armed write shim
+    .concat(await require('./mcp-stage-check.js').run());   // N-549: update_role_stage + the shared Stage sequence through the same loader and shim
   clearTimeout(mcpWatchdog);
   for (const c of mcpChecks) {
     if (c.ok) {

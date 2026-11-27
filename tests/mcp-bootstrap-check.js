@@ -225,7 +225,7 @@ async function run() {
     await check('AC1 CONFIG.MCP has exactly contract/scripts/allowedLists/allowedRoles/gateTtlMs/confirmTtlMs/writeLists + the N-393 outputDenyFields/windows/maxRows; contract 2 equals the bundle; writeLists inside the bundle ceiling', async () => {
       ok(realState.ok, 'live load failed: ' + realState.reason);
       const m = real.config().MCP;
-      eq(Object.keys(m), ['contract', 'scripts', 'allowedLists', 'allowedRoles', 'gateTtlMs', 'confirmTtlMs', 'maxWeeklyEntries', 'guideCacheTtlMs', 'writeLists', 'outputDenyFields', 'windows', 'maxRows'], 'CONFIG.MCP keys, in order');
+      eq(Object.keys(m), ['contract', 'scripts', 'allowedLists', 'allowedRoles', 'gateTtlMs', 'confirmTtlMs', 'maxWeeklyEntries', 'maxStageMoves', 'guideCacheTtlMs', 'writeLists', 'outputDenyFields', 'windows', 'maxRows'], 'CONFIG.MCP keys, in order');
       eq([m.contract, MCP_CONTRACT, BUNDLE_VERSION], [2, 2, '2.0.0'], 'CONFIG.MCP.contract vs server-core.js MCP_CONTRACT / BUNDLE_VERSION');
       eq(Array.from(m.allowedRoles).sort(), ['admin', 'delivery_manager', 'leadership', 'talent_partner'], 'allowedRoles (N-553: DM / TP, scoped in mcp/newton-tools.js)');
       eq(m.confirmTtlMs, 300000, 'confirmTtlMs');

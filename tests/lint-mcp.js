@@ -136,7 +136,7 @@ function lintMcpTools(src, cfg) {
     function (m) { return 'Graph / SharePoint path text "' + m[0] + '" — read through an api getter'; });
   scan(st.code, /(^|[^\w$.])(getItems|_getItemsRaw|getItem|graphRequest|fetch)\s*\(/g, 'transport',
     function (m) { return 'direct transport call ' + m[2] + '() — read through a registered api getter'; });
-  scan(st.code, /(^|[^\w$.])((?:create|update|delete|save|sync|write|acknowledge|remove|set|post|send)[A-Z]\w*|createItem|updateItem|deleteItem)\s*\(/g, 'write',
+  scan(st.code, /(^|[^\w$.])((?:create|update|delete|save|sync|write|acknowledge|remove|set|post|send|apply)[A-Z]\w*|createItem|updateItem|deleteItem)\s*\(/g, 'write',
     function (m) { return 'write-shaped call ' + m[2] + '() — Newton for Claude is read-only'; });
   scan(st.code, /(^|[^\w$.])(document|window|navigator|localStorage|sessionStorage|_setGhost\w*)\b/g, 'dom',
     function (m) { return 'browser / ghost-mode identifier ' + m[2] + ' — the tools run with no DOM'; });
@@ -172,6 +172,7 @@ var MCP_APPROVED_WRITERS = [
   'createWeeklyActivity',   // N-548: N-315 ProjectID resolve + verify/heal
   'updateItem',             // N-548: weekly edits (the nine counts + Source / SubmittedAt)
   'updateRoleWithHistory',  // N-549: Stage + RoleHistory
+  'applyRoleStageChange',   // N-549: the Stage move (gate + rule + write) the Roles page and update_role_stage share; awaits the RoleHistory row
   'fireNotification',       // N-548: the Hires > 0 placement prompt (AMCP-A9)
   'createSavedReport',      // N-550: draft report only
   'updateSavedReport',      // N-550
@@ -225,7 +226,7 @@ function lintMcpWriteTools(src, cfg) {
   while ((m = inline.exec(st.code)) !== null) {
     out.push({ line: _mcpLineOf(st.code, m.index), rule: 'write', problem: 'commit must name a top-level function, not an inline one' });
   }
-  var writeRe = /(^|[^\w$.])((?:create|update|delete|save|sync|write|acknowledge|remove|set|post|send)[A-Z]\w*|createItem|updateItem|deleteItem)\s*\(/g;
+  var writeRe = /(^|[^\w$.])((?:create|update|delete|save|sync|write|acknowledge|remove|set|post|send|apply)[A-Z]\w*|createItem|updateItem|deleteItem)\s*\(/g;
   while ((m = writeRe.exec(st.code)) !== null) {
     var at = m.index + m[1].length;
     var owner = null;

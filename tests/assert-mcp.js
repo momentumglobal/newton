@@ -10,7 +10,7 @@ var MCP_N466_TOOL_NAMES = ['workforce_segmentation'];
 var MCP_N467_TOOL_NAMES = ['joiners'];
 var MCP_N535_TOOL_NAMES = ['business_goals'];
 var MCP_N547_TOOL_NAMES = ['search_guides', 'read_guide_section'];   // mcp/newton-guides.js, loaded after newton-tools.js
-var MCP_N548_TOOL_NAMES = ['log_weekly_activity'];   // mcp/newton-write-tools.js, loaded after newton-guides.js (the one write tool so far)
+var MCP_N548_TOOL_NAMES = ['log_weekly_activity', 'update_role_stage'];   // mcp/newton-write-tools.js, loaded after newton-guides.js (the write tools: N-548, N-549)
 
 function _mcpThrows(fn, re, label) {
   try { fn(); } catch (e) {
@@ -320,6 +320,7 @@ var MCP_N553_ROLES = (function () {
   MCP_N553_SCOPED_TOOLS.concat(['time_to_fill'], MCP_N547_TOOL_NAMES).forEach(n => { out[n] = all; });   // N-547: guides hold no sensitive data
   ['project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals'].forEach(n => { out[n] = lead; });
   out.log_weekly_activity = ['admin', 'delivery_manager', 'talent_partner'];   // N-548 (AMCP-A2): Leadership is read-only
+  out.update_role_stage = ['admin', 'delivery_manager', 'talent_partner'];     // N-549 (AMCP-A2): the same
   return out;
 })();
 
@@ -494,7 +495,7 @@ ASSERTIONS.push(
       const m = CONFIG.MCP;
       _assertEqual(m.scripts.slice(-3), ['mcp/newton-tools.js', 'mcp/newton-guides.js', 'mcp/newton-write-tools.js'], 'script order');
       _assertEqual([m.contract, m.guideCacheTtlMs], [2, 3600000], 'contract + TTL');
-      _assertEqual(MCP_TOOLS.length, 17, 'sixteen read tools + log_weekly_activity (N-548)');
+      _assertEqual(MCP_TOOLS.length, 18, 'sixteen read tools + log_weekly_activity (N-548) + update_role_stage (N-549)');
       const four = ['admin', 'leadership', 'delivery_manager', 'talent_partner'];
       const s = MCP_TOOLS.find(t => t.name === 'search_guides');
       const r = MCP_TOOLS.find(t => t.name === 'read_guide_section');

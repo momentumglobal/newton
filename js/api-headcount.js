@@ -4,7 +4,8 @@
 // diagnostics.js in every shell (diagnostics.js must stay directly after
 // api.js). Runtime dependencies: getItems / getItem / createItem / updateItem /
 // _cacheInvalidate (graph-client.js), updateRoleWithHistory / getPlacements /
-// getRolesForProject (api.js), the pure headcount rules (headcount.js) and
+// getRolesForProject (api.js), checkRoleWrite (api-access.js, N-549: called at run
+// time only), the pure headcount rules (headcount.js) and
 // isoDate / spDateIn / runWithConcurrency (utils.js).
 
 // ── Role headcount (N-306 / HC-1) ────────────────────────────────────
@@ -183,6 +184,38 @@ async function checkRoleStageChange(roleId, toStage) {
     counts:    state.counts,
     fromStage: role.Stage,
   };
+}
+
+// N-549 (AMCP-C4): the gate -> stage rule sequence the Roles page ran inline, DOM-free so the page
+// and update_role_stage (Newton for Claude) share it. The project write gate first (N-369), then
+// checkRoleStageChange (N-307). Fails closed: a refusal or a failed headcount read returns
+// { ok: false, reason } and writes nothing. A gate / read error from checkRoleWrite propagates, as it
+// did on the page.
+async function checkRoleStageMove(roleId, toStage) {
+  const gate = await checkRoleWrite(roleId);
+  if (!gate.ok) return { ok: false, reason: gate.reason, cascadeCancel: false };
+  try {
+    return await checkRoleStageChange(roleId, toStage);
+  } catch (e) {
+    console.warn('N-307: stage check failed for role ' + roleId, e);
+    return { ok: false, reason: "Couldn't check this role's headcount — stage not changed.", cascadeCancel: false };
+  }
+}
+
+// N-549 (AMCP-C4 / C5): move one role to a stage. Runs checkRoleStageMove unless the caller already
+// did (opts.preChecked, the Roles page, which checks before its optimistic update), then the one
+// Stage write through updateRoleWithHistory. opts.source tags the RoleHistory row; opts.awaitHistory
+// awaits it (the MCP path) and reports historyOk. Returns { ok: false, reason } on a refusal, else
+// { ok: true, fromStage, toStage, historyOk } (historyOk is null when the history write is not awaited).
+async function applyRoleStageChange(roleId, toStage, opts = {}) {
+  let fromStage;
+  if (!opts.preChecked) {
+    const check = await checkRoleStageMove(roleId, toStage);
+    if (!check.ok) return { ok: false, reason: check.reason };
+    fromStage = check.fromStage;
+  }
+  const res = await updateRoleWithHistory(roleId, { Stage: toStage }, { source: opts.source, awaitHistory: opts.awaitHistory });
+  return { ok: true, fromStage, toStage, historyOk: opts.awaitHistory ? res.historyOk : null };
 }
 
 // N-308: everything the Headcount picker needs for one project — the

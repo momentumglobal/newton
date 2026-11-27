@@ -363,20 +363,8 @@ async function updateRoleStage(roleId, selectEl) {
       lucide.createIcons();
     }
   };
-  // N-369: the project write gate first — fails closed.
-  const gateCheck = await checkRoleWrite(roleId);
-  if (!gateCheck.ok) {
-    toast(gateCheck.reason, { type: 'error' });
-    restoreBadge();
-    return;
-  }
-  let check;
-  try {
-    check = await checkRoleStageChange(roleId, newStage);
-  } catch (e) {
-    console.warn('N-307: stage check failed for role ' + roleId, e);
-    check = { ok: false, reason: "Couldn't check this role's headcount — stage not changed." };
-  }
+  // N-369 gate then N-307 rule, fails closed — N-549: the shared checkRoleStageMove (api-headcount.js).
+  const check = await checkRoleStageMove(roleId, newStage);
   if (!check.ok) {
     toast(check.reason, { type: 'error' });
     restoreBadge();
@@ -400,7 +388,7 @@ async function updateRoleStage(roleId, selectEl) {
       // way to safely restore a row that apply() removed.
       await renderRolesPage(_rolesFilter);
     },
-    commit: () => updateRoleWithHistory(roleId, { Stage: newStage }),
+    commit: () => applyRoleStageChange(roleId, newStage, { preChecked: true }),   // N-549: checked just above
     errorMessage: `Could not update stage from ${prevStage || '—'}.`
   });
 }

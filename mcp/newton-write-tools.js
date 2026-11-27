@@ -15,6 +15,10 @@
 // functions in js/weekly-activity-logic.js (the same ones the form, the bulk grid and mobile quick-log call); the
 // create / update sequence is saveWeeklyRow (js/api-weekly.js), which ends in createWeeklyActivity (N-315 heal).
 // Scope and write gates are Newton's own: mcpScope() (newton-tools.js), checkRoleWrite (N-369), getTalentPartnersForProject.
+//
+// update_role_stage (N-549, AMCP-5; specs/N-549.md): move roles forward or back through the linear stages
+// (Backlog ... Offered). The gate -> headcount rule -> write sequence is applyRoleStageChange (js/api-headcount.js),
+// the same code the Roles page runs; the RoleHistory row is awaited and tagged Source = claude (AMCP-C5).
 
 // Entry keys Claude may send: the role, who and when, and the nine counts.
 var MCP_WEEKLY_ENTRY_KEYS = ['role', 'project', 'week', 'talentPartner'].concat(WEEKLY_COUNT_FIELDS.map(function (f) { return f.key; }));
@@ -337,6 +341,168 @@ async function mcpLogWeeklyCommit(plan, ctx) {
   };
 }
 
+// ── update_role_stage (N-549, AMCP-5) ─────────────────────────────────
+
+var MCP_STAGE_MOVE_KEYS = ['role', 'project', 'stage'];
+var MCP_STAGE_SOURCE = 'claude';   // RoleHistory.Source on every Stage row Claude writes (AMCP-A7)
+var MCP_STAGE_ELSEWHERE = 'Do that in Newton on the role page.';   // close, cancel, hold, reopen: out of scope (AMCP-D4)
+
+function mcpStageRefuse(i, message) {
+  return mcpRefuse('Move ' + (i + 1) + ': ' + message);
+}
+
+// Re-throws a resolver's plain or MCP_REFUSED error naming the move it came from.
+function mcpStageEntryError(i, e) {
+  if (e && e.code === 'MCP_STALE') return e;
+  return mcpStageRefuse(i, e && e.message ? e.message : String(e));
+}
+
+function mcpStageMoves(args) {
+  var list = args.moves;
+  var max = CONFIG.MCP.maxStageMoves;
+  if (!Array.isArray(list) || !list.length) throw mcpRefuse('Give at least one role to move.');
+  if (list.length > max) throw mcpRefuse('Move at most ' + max + ' roles in one go.');
+  list.forEach(function (m, i) {
+    if (!m || typeof m !== 'object' || Array.isArray(m)) throw mcpStageRefuse(i, 'each move must be an object.');
+    Object.keys(m).forEach(function (k) {
+      if (MCP_STAGE_MOVE_KEYS.indexOf(k) === -1) throw mcpStageRefuse(i, 'unknown field "' + k + '".');
+    });
+    if (m.role === undefined || m.role === null || String(m.role).trim() === '') throw mcpStageRefuse(i, 'say which role.');
+    if (m.stage === undefined || m.stage === null || String(m.stage).trim() === '') throw mcpStageRefuse(i, 'say which stage.');
+  });
+  return list;
+}
+
+// The stage a move means (AMCP-C2 / C3): next / previous along the linear set from `from`, or a stage name
+// (any case) from the linear set. Close, Cancel and On-hold are named but refused.
+function mcpStageTarget(from, raw, linear) {
+  var q = String(raw).trim();
+  var n = mcpNorm(q);
+  if (n === 'next' || n === 'previous') {
+    var at = linear.indexOf(from);
+    var step = n === 'next' ? 1 : -1;
+    var to = linear[at + step];
+    if (!to) throw mcpRefuse(from + ' is the ' + (step > 0 ? 'last' : 'first') + ' stage Claude can set. ' + (step > 0 ? MCP_STAGE_ELSEWHERE : 'There is nothing before it.'));
+    return to;
+  }
+  var hit = linear.filter(function (s) { return mcpNorm(s) === n; });
+  if (hit.length) return hit[0];
+  var other = CONFIG.ROLE_STAGES.filter(function (s) { return mcpNorm(s) === n; });
+  if (other.length) throw mcpRefuse('Claude cannot move a role to ' + other[0] + '. ' + MCP_STAGE_ELSEWHERE);
+  throw mcpRefuse('"' + q + '" is not a stage. Choose from: ' + linear.join(', ') + ' (or next / previous).');
+}
+
+// Everything one move needs: the resolved role, from and to stages, Newton's own gate and rule. Reads only.
+// -> { dropped: message } or { plan, change, warnings }.
+async function mcpStagePlanMove(move, i, scope, deps, linear) {
+  var role = mcpWeeklyResolveRole(move, scope, deps.roles, deps.projects);
+  var project = deps.projects.find(function (p) { return String(p.id) === mcpWeeklyRoleProject(role); });
+  if (!project) throw mcpRefuse(MCP_UNAVAILABLE);
+  var label = mcpWeeklyRoleLabel(role);
+  var from = normaliseRoleStage(role.Stage);
+  if (linear.indexOf(from) === -1) throw mcpRefuse(label + ' is ' + from + '. ' + MCP_STAGE_ELSEWHERE);
+  var to = mcpStageTarget(from, move.stage, linear);
+  if (to === from) return { dropped: label + ' is already at ' + from + '.' };
+  var check = await checkRoleStageMove(role.id, to);   // Newton's write gate (N-369) then headcount rule (N-307): its own refusal text
+  if (!check.ok) throw mcpRefuse(label + ': ' + check.reason);
+  var warnings = [];
+  if (linear.indexOf(to) < linear.indexOf(from)) warnings.push(label + ': moving back from ' + from + ' to ' + to + '.');
+  return {
+    plan: { roleId: Number(role.id), projectId: Number(project.id), roleLabel: label, projectName: project.CustomerName || '', from: from, to: to },
+    change: { field: label + ' | ' + (project.CustomerName || 'Project') + ' | Stage', from: from, to: to },
+    warnings: warnings,
+  };
+}
+
+async function mcpStagePreview(args, ctx) {
+  var scope = await mcpScope();
+  var moves = mcpStageMoves(args);
+  var linear = linearRoleStages();
+  var reads = await Promise.all([getProjects(false), getAllRoles()]);
+  var deps = { projects: reads[0], roles: reads[1] };
+  var plans = [];
+  var changes = [];
+  var warnings = [];
+  var seen = {};
+  for (var i = 0; i < moves.length; i++) {
+    var one;
+    try {
+      one = await mcpStagePlanMove(moves[i], i, scope, deps, linear);
+    } catch (e) {
+      throw mcpStageEntryError(i, e);
+    }
+    if (one.dropped) { warnings.push(one.dropped); continue; }
+    if (seen[one.plan.roleId]) throw mcpStageRefuse(i, one.plan.roleLabel + ' is already in this call.');
+    seen[one.plan.roleId] = true;
+    plans.push(one.plan);
+    changes.push(one.change);
+    one.warnings.forEach(function (w) { warnings.push(w); });
+  }
+  if (!plans.length) throw mcpRefuse('Nothing to change: every role is already at that stage.');
+  warnings.push('A stage move resets the role\'s days in stage and can change its flags.');
+  return {
+    summary: 'Move ' + plans.length + ' role' + (plans.length === 1 ? '' : 's') + ' to a new stage.',
+    changes: changes,
+    warnings: warnings,
+    plan: { moves: plans },
+  };
+}
+
+// Preflight for one planned move, run for EVERY move before the first write: fresh scope, the role still
+// there and still at the previewed stage, and Newton's gate and rule still passing.
+async function mcpStagePreflight(m, scope, roles) {
+  var role = roles.find(function (r) { return String(r.id) === String(m.roleId); });
+  if (!role || (scope.scoped && !mcpInScope(scope, mcpWeeklyRoleProject(role)))) throw mcpRefuse(MCP_UNAVAILABLE);
+  if (normaliseRoleStage(role.Stage) !== m.from) throw mcpWeeklyStale();
+  var check = await checkRoleStageMove(m.roleId, m.to);
+  if (!check.ok) throw mcpRefuse(m.roleLabel + ': ' + check.reason);
+}
+
+// Runs on the stored plan only. Every move is checked before any is written; the writes are sequential. A failed
+// write, or a history entry that did not save (AMCP-C5), stops the rest and the result says what was and was not
+// saved. applyRoleStageChange awaits the RoleHistory write: the write shim closes when this commit settles.
+async function mcpStageCommit(plan, ctx) {
+  var scope = await mcpScope();
+  _cacheInvalidate('Roles');
+  _cacheInvalidate('RoleHeadcount');   // the headcount rule must see a fill or cancel made since the preview (as getPlacementTarget, N-308)
+  _cacheInvalidate('Placements');
+  var roles = await getAllRoles();
+  for (var i = 0; i < plan.moves.length; i++) {
+    await mcpStagePreflight(plan.moves[i], scope, roles);
+  }
+  var saved = [];
+  var notSaved = [];
+  var historyFailed = false;
+  var stopped = null;
+  for (var j = 0; j < plan.moves.length; j++) {
+    var m = plan.moves[j];
+    if (stopped) { notSaved.push({ role: m.roleLabel, reason: 'Not attempted: ' + stopped }); continue; }
+    try {
+      var res = await applyRoleStageChange(m.roleId, m.to, { source: MCP_STAGE_SOURCE, awaitHistory: true });
+      if (!res.ok) {
+        stopped = 'an earlier move failed.';
+        notSaved.push({ role: m.roleLabel, reason: 'Not saved: ' + res.reason });
+        continue;
+      }
+      saved.push({ role: m.roleLabel, project: m.projectName, from: m.from, to: m.to, historyOk: res.historyOk === true });
+      if (res.historyOk !== true) {
+        historyFailed = true;
+        stopped = 'the history entry for an earlier move did not save.';
+      }
+    } catch (err) {
+      stopped = 'an earlier move failed.';
+      notSaved.push({ role: m.roleLabel, reason: 'Not saved: ' + (err && err.message ? err.message : String(err)) });
+    }
+  }
+  return {
+    saved: saved,
+    notSaved: notSaved,
+    historyWarning: historyFailed
+      ? 'The stage moved in Newton, but its history entry did not save, so the move will not show on the role\'s timeline. Tell the user, and ask them to check the role\'s history in Newton.'
+      : null,
+  };
+}
+
 MCP_TOOLS.push(
   {
     name: 'log_weekly_activity',
@@ -360,5 +526,39 @@ MCP_TOOLS.push(
     write: true,
     preview: mcpLogWeeklyPreview,
     commit: mcpLogWeeklyCommit,
+  },
+);
+
+MCP_TOOLS.push(
+  {
+    name: 'update_role_stage',
+    description: 'Move roles you can write forward or back through the pipeline stages (' + linearRoleStages().join(', ') + '): a stage name, or "next" / "previous". Up to ' + CONFIG.MCP.maxStageMoves + ' roles per call. Closing, cancelling and putting a role on hold are done in Newton.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        moves: {
+          type: 'array',
+          minItems: 1,
+          maxItems: CONFIG.MCP.maxStageMoves,
+          description: 'The roles to move.',
+          items: {
+            type: 'object',
+            properties: {
+              role: { type: 'string', description: 'The role: its id (from list_roles) or its title. A title is matched among the roles you can write, narrowed by project if given.' },
+              project: { type: 'string', description: 'Optional project name or id, to narrow a role title.' },
+              stage: { type: 'string', description: 'The stage to move the role to: a stage name, "next" or "previous" (one step from its current stage).' },
+            },
+            required: ['role', 'stage'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['moves'],
+      additionalProperties: false,
+    },
+    roles: ['admin', 'delivery_manager', 'talent_partner'],   // AMCP-A2: Leadership is read-only
+    write: true,
+    preview: mcpStagePreview,
+    commit: mcpStageCommit,
   },
 );

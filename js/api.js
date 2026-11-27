@@ -247,7 +247,13 @@ async function _verifyWeeklyActivityProjectId(created, sentId, roleId) {
 // the RoleHistory write in the background — never awaited, never allowed
 // to block or fail the caller's save (same non-blocking shape as
 // a fire-and-forget promise.catch(...) call).
-async function updateRoleWithHistory(roleId, fields) {
+// N-549 (AMCP-C5): `opts` is { source, awaitHistory }. No opts = exactly the behaviour above, and the
+// six app call sites pass none. `source` tags the RoleHistory rows ('claude' from Newton for Claude);
+// `awaitHistory` makes the history write part of the call, because the MCP write shim only allows
+// writes until its commit settles. Then the return is { result, historyOk, historyRows } and a
+// history failure never throws (the Roles write has already landed): historyOk is false when the
+// prior role could not be read or the write failed.
+async function updateRoleWithHistory(roleId, fields, opts = {}) {
   let oldRole = null;
   try {
     oldRole = await getItem('Roles', roleId);
@@ -255,8 +261,21 @@ async function updateRoleWithHistory(roleId, fields) {
     console.warn('RoleHistory: could not read prior Roles state', e);
   }
   const result = await updateItem('Roles', roleId, fields);
+  if (opts.awaitHistory) {
+    let historyOk = false;
+    let historyRows = 0;
+    if (oldRole) {
+      try {
+        historyRows = await _logRoleHistory(oldRole, fields, opts.source);
+        historyOk = true;
+      } catch (e) {
+        console.warn('RoleHistory: write failed', e);
+      }
+    }
+    return { result, historyOk, historyRows };
+  }
   if (oldRole) {
-    _logRoleHistory(oldRole, fields).catch(e =>
+    _logRoleHistory(oldRole, fields, opts.source).catch(e =>
       console.warn('RoleHistory: write failed', e)
     );
   }
@@ -272,7 +291,7 @@ function _resolveRoleDisplayField(internalField) {
   const aliases = FIELD_ALIASES.Roles;
   return (aliases && aliases[internalField]) || internalField;
 }
-async function _logRoleHistory(oldRole, newFields) {
+async function _logRoleHistory(oldRole, newFields, source) {
   const email     = getCurrentUser().email;
   const changedAt = new Date().toISOString(); // genuine instant — N-091 exempt
   const rows = Object.keys(newFields)
@@ -284,16 +303,19 @@ async function _logRoleHistory(oldRole, newFields) {
       return { field, oldValue, newValue };
     })
     .filter(({ oldValue, newValue }) => String(oldValue ?? '') !== String(newValue ?? ''));
-  await Promise.all(rows.map(({ field, oldValue, newValue }) =>
-    createItem('RoleHistory', {
+  await Promise.all(rows.map(({ field, oldValue, newValue }) => {
+    const row = {
       RoleIDLookupId: parseInt(oldRole.id),
       Field:          field,
       OldValue:       oldValue !== undefined && oldValue !== null ? String(oldValue) : '',
       NewValue:       newValue !== undefined && newValue !== null ? String(newValue) : '',
       ChangedBy:      email,
       ChangedAt:      changedAt,
-    })
-  ));
+    };
+    if (source) row.Source = source;   // N-549 (AMCP-A7): blank for the app, 'claude' for Newton for Claude
+    return createItem('RoleHistory', row);
+  }));
+  return rows.length;
 }
 // ── Role History reads (N-100) ────────────────────────────────────
 // Full-row read for one role's timeline. RoleIDLookupId is the Graph

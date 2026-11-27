@@ -66,10 +66,11 @@ Goals & Actions is where Leadership and the Board set and track Momentum's busin
 
 ## Newton for Claude (MCP)
 
-Leadership and Admin users can install **Newton for Claude** in Claude Desktop (Windows) and ask plain questions about Newton's reporting and people data. Answers are computed by Newton's own code, read-only, and never include candidate names, money or notes.
+Admin, Leadership, Delivery Manager and Talent Partner users can install **Newton for Claude** in Claude Desktop (Windows) and ask plain questions about Newton's reporting and people data. Answers are computed by Newton's own code, read-only, and never include candidate names, money or notes.
 
 - **Install and sign-in guide:** [`mcp/README.md`](mcp/README.md)
 - **Bundle v2 (N-546, Nov 2026):** contract 2, so every install updates once. It adds per-tool roles and the preview + confirm write path for the Advanced Newton MCP tools (N-547 onwards).
+- **DMs and TPs (N-553, Nov 2026):** the seven reporting tools, scoped to their own projects (TPs: their own rows). People tools, scorecards and goals stay Leadership and Admin.
 - **Developer notes:** the **Newton for Claude** section of [README.html](https://momentumglobal.github.io/newton/Readme.html)
 
 ## Repository and publishing

@@ -308,13 +308,34 @@ ASSERTIONS.push(
 );
 
 // ── N-546 (AMCP-2): contract 2 — per-tool roles, writeLists, the write-tools lint ──
+// N-553 (AMCP-A2): who may call each read tool. DM / TP get the seven reporting reads, scoped
+// to their own projects by mcpScope(); People, scorecards and goals stay Admin + Leadership.
+var MCP_N553_SCOPED_TOOLS = ['list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements'];
+var MCP_N553_ROLES = (function () {
+  const all = ['admin', 'leadership', 'delivery_manager', 'talent_partner'];
+  const lead = ['admin', 'leadership'];
+  const out = {};
+  MCP_N553_SCOPED_TOOLS.concat(['time_to_fill']).forEach(n => { out[n] = all; });
+  ['project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners', 'business_goals'].forEach(n => { out[n] = lead; });
+  return out;
+})();
+
+// The text of top-level function `name` in `src`, comments blanked (lint-mcp.js _mcpLintStrip).
+function _mcpFnText(src, name) {
+  const nc = _mcpLintStrip(src).noComments;
+  const m = new RegExp('(?:async )?function ' + name + '\\(').exec(nc);
+  if (!m) throw new Error(name + ' not found');
+  const end = nc.indexOf('\n}\n', m.index);
+  return nc.slice(m.index, end === -1 ? nc.length : end + 2);
+}
+
 ASSERTIONS.push(
   {
-    name: 'N-546 AC1-AC3 CONFIG.MCP contract 2: allowedRoles still Admin + Leadership, Notifications readable (dedupe only, denied keys), confirmTtlMs 5 min, writeLists shape; every MCP_TOOLS entry is a read tool with roles [admin, leadership]',
+    name: 'N-546 AC1-AC3 / N-553 AC2 CONFIG.MCP contract 2: allowedRoles Admin, Leadership, DM, TP; Notifications readable (dedupe only, denied keys), confirmTtlMs 5 min, writeLists shape; every MCP_TOOLS entry is a read tool with the AMCP-A2 roles',
     fn: function () {
       const m = CONFIG.MCP;
       _assertEqual(m.contract, 2, 'contract');
-      _assertEqual(Array.from(m.allowedRoles), ['admin', 'leadership'], 'allowedRoles (N-553 opens it to DM / TP)');
+      _assertEqual(Array.from(m.allowedRoles), ['admin', 'leadership', 'delivery_manager', 'talent_partner'], 'allowedRoles (AMCP-A1, opened to DM / TP by N-553)');
       _assertEqual(m.allowedLists.includes('Notifications'), true, 'Notifications readable for fireNotification dedupe');
       ['RecipientEmail', 'Body', 'DeepLink'].forEach(f => { if (!(m.outputDenyFields.Notifications || []).includes(f)) throw new Error('outputDenyFields.Notifications lacks ' + f); });
       _assertEqual(m.confirmTtlMs, 300000, 'confirmTtlMs');
@@ -338,7 +359,7 @@ ASSERTIONS.push(
       });
       _assertEqual(MCP_FUNNEL_FIELDS.map(f => f === 'Interview2Plus' ? 'InterviewTwoPlus' : f), counts, 'the nine write names match the read funnel (Interview2Plus reads, InterviewTwoPlus writes)');
       MCP_TOOLS.forEach(t => {
-        _assertEqual(Array.from(t.roles || []), ['admin', 'leadership'], t.name + ' roles');
+        _assertEqual(Array.from(t.roles || []), MCP_N553_ROLES[t.name] || ['(no AMCP-A2 row)'], t.name + ' roles (AMCP-A2)');
         if ('write' in t) throw new Error(t.name + ': newton-tools.js holds read tools only');
         if (typeof t.handler !== 'function') throw new Error(t.name + ': no handler');
       });
@@ -364,6 +385,66 @@ ASSERTIONS.push(
       if (typeof MCP_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
       const src = MCP_SOURCES['newton-write-tools.js'];
       if (src !== undefined) _assertEqual(lintMcpWriteTools(src, CONFIG).map(v => `${v.line} ${v.rule}: ${v.problem}`), [], 'lintMcpWriteTools on mcp/newton-write-tools.js');
+    },
+  },
+);
+
+// ── N-553 (AMCP-2b): TP / DM read scoping — wiring (the behaviour runs in mcp-tools-check.js) ──
+ASSERTIONS.push(
+  {
+    name: 'N-553 AC3 mcpScope() is built only from live Newton functions (getCurrentUser, getEffectiveRole, getUserProjectIds, projectScopeForRole), resolved fresh, refuses a role outside allowedRoles; the six project-scoped handlers call it, time_to_fill deliberately does not',
+    fn: function () {
+      if (typeof MCP_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const src = MCP_SOURCES['newton-tools.js'];
+      const body = _mcpFnText(src, 'mcpScope');
+      ['getCurrentUser(', 'getEffectiveRole(', 'getUserProjectIds(', 'projectScopeForRole(', 'CONFIG.MCP.allowedRoles', 'CONFIG.ROLE_IDS.TALENT_PARTNER'].forEach(t => {
+        if (body.indexOf(t) < 0) throw new Error('mcpScope does not use ' + t);
+      });
+      ['sessionStorage', 'localStorage', 'getScopedUserEmail', 'getGhostUser', 'ctx'].forEach(t => {
+        if (body.indexOf(t) >= 0) throw new Error('mcpScope must not use ' + t);
+      });
+      // No cache for it (N-296 / AMCP-A3): no top-level var / let / const named like a cache or memo.
+      const nc = _mcpLintStrip(src).noComments;
+      const tops = (nc.match(/^(?:var|let|const) (\w+)/gm) || []).map(l => l.split(' ')[1]);
+      tops.filter(n => /cache|memo/i.test(n)).forEach(n => { throw new Error('module-level cache: ' + n); });
+      MCP_N553_SCOPED_TOOLS.forEach(name => {
+        const t = MCP_TOOLS.find(x => x.name === name);
+        const fnBody = _mcpFnText(src, t.handler.name);
+        if (fnBody.indexOf('await mcpScope()') < 0) throw new Error(name + ': ' + t.handler.name + ' does not call mcpScope()');
+      });
+      if (_mcpFnText(src, 'mcpTimeToFill').indexOf('mcpScope(') >= 0) throw new Error('time_to_fill is a company benchmark: no mcpScope() (N-553 spec)');
+      _assertEqual(typeof MCP_UNAVAILABLE, 'string', 'MCP_UNAVAILABLE');
+      _assertEqual(MCP_UNAVAILABLE, "That Newton data isn't available to your account.", 'the AMCP-A2 out-of-scope answer');
+      const e = mcpRefuse('x');
+      _assertEqual([e.message, e.code], ['x', 'MCP_REFUSED'], 'mcpRefuse');
+    },
+  },
+  {
+    name: 'N-553 scope helpers (pure): unscoped returns its input unchanged; scoped keeps own projects / roles; TP rows by tpMatches on the given key; mcpResolveProject refuses missing and hidden alike',
+    fn: function () {
+      const all = Object.freeze({ scoped: false, projectIds: null, tpEmail: null });
+      const dm = Object.freeze({ scoped: true, projectIds: ['1'], tpEmail: null });
+      const tp = Object.freeze({ scoped: true, projectIds: ['1', '2'], tpEmail: 'tp@x.co' });
+      const none = Object.freeze({ scoped: true, projectIds: [], tpEmail: null });
+      const projects = [{ id: 1, CustomerName: 'Alpha' }, { id: 2, CustomerName: 'Beta' }, { id: 3, CustomerName: 'Gamma' }];
+      if (mcpScopeProjects(all, projects) !== projects) throw new Error('unscoped projects must be the same array');
+      _assertEqual(mcpScopeProjects(dm, projects).map(p => p.id), [1], 'DM projects');
+      const roles = [{ id: 10, ProjectIDLookupId: 1, TalentPartner: 'tp@x.co' }, { id: 11, ProjectIDLookupId: 2, TalentPartner: 'a@x.co;TP@x.co' }, { id: 12, ProjectID: 3, TalentPartner: 'tp@x.co' }, { id: 13, TalentPartner: '' }];
+      if (mcpScopeRoles(all, roles) !== roles) throw new Error('unscoped roles must be the same array');
+      _assertEqual(mcpScopeRoles(tp, roles).map(r => r.id), [10, 11], 'TP roles on own projects (no project = out)');
+      _assertEqual(mcpTpOwn(tp, roles, 'TalentPartner').map(r => r.id), [10, 11, 12], 'TP own rows (multi-TP, case-insensitive)');
+      if (mcpTpOwn(dm, roles, 'TalentPartner') !== roles) throw new Error('non-TP rows must be the same array');
+      _assertEqual(mcpTpOwn(tp, [{ tpEmail: 'tp@x.co' }, { tpEmail: null }], 'tpEmail').length, 1, 'tpEmail key');
+      _assertEqual(mcpResolveProject('beta', projects, tp).id, 2, 'in scope resolves');
+      const msg = arg => { try { mcpResolveProject(arg, projects, dm); } catch (e) { return [e.code, e.message]; } return null; };
+      _assertEqual(msg('gamma'), msg('nothing-like-it'), 'hidden and missing answer the same');
+      _assertEqual(msg('3'), msg('99'), 'hidden and missing ids answer the same');
+      _assertEqual(msg('gamma'), ['MCP_REFUSED', MCP_UNAVAILABLE + ' Your projects: Alpha (id 1).'], 'only own projects listed');
+      _mcpThrows(() => mcpResolveProject('alpha', projects, none), /Newton shows you no projects\.$/, 'empty scope');
+      _mcpThrows(() => mcpResolveProject('zzz', projects, all), /^No project matched "zzz"\. Projects: Alpha \(id 1\), Beta \(id 2\), Gamma \(id 3\)\.$/, 'unscoped message unchanged');
+      _mcpThrows(() => mcpResolveProject('zzz', projects), /^No project matched "zzz"/, 'no scope argument = unchanged');
+      _assertEqual(mcpInScope(all, 999), true, 'unscoped is in scope');
+      _assertEqual([mcpInScope(dm, 1), mcpInScope(dm, '1'), mcpInScope(dm, 2), mcpInScope(dm, '')], [true, true, false, false], 'DM in scope');
     },
   },
 );

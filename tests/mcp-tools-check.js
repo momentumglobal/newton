@@ -34,9 +34,9 @@ async function rejects(promise, re, msg) {
   }
   throw new Error(msg + ' (it resolved)');
 }
-const stubShim = () => ({
+const stubShim = (email = 'chris@example.com') => ({
   getToken: async () => 'tok',
-  getCurrentUser: () => ({ email: 'chris@example.com', name: 'Test' }),
+  getCurrentUser: () => ({ email, name: 'Test' }),
   isSignedIn: () => true,
   authReady: () => Promise.resolve(null),
 });
@@ -164,9 +164,9 @@ async function run() {
   async function check(name, fn) {
     try {
       await fn();
-      results.push({ name: /^N-(394|466)/.test(name) ? name : 'N-393 ' + name, ok: true });
+      results.push({ name: /^N-(394|466|553)/.test(name) ? name : 'N-393 ' + name, ok: true });
     } catch (e) {
-      results.push({ name: /^N-(394|466)/.test(name) ? name : 'N-393 ' + name, ok: false, message: e && e.message ? e.message : String(e) });
+      results.push({ name: /^N-(394|466|553)/.test(name) ? name : 'N-393 ' + name, ok: false, message: e && e.message ? e.message : String(e) });
     }
   }
   const { createLoader } = require(path.join(BOOT, 'loader.js'));
@@ -179,11 +179,29 @@ async function run() {
   lists.BusinessGoals.forEach(r => { r.GoalYear = Number(subY(r.GoalYear)); r.Period = subY(r.Period); });
   const outputs = [];   // every serialised tool result, for the AC 9 scan
 
-  async function newLoader(opts) {
+  // N-553: every loader runs as one identity. mcpScope() calls the live getEffectiveRole and
+  // getUserProjectIds; both are replaced in the vm context with stubs that return `role` /
+  // `projectIds` and record their arguments, so no Graph read is added (the AC4 read sets
+  // are unchanged). Default: Leadership, whose [] projectScopeForRole lifts to all projects.
+  async function newLoader(opts = {}) {
+    const id = Object.assign({ email: 'chris@example.com', role: 'leadership', projectIds: [] }, opts.identity || {});
     const graph = makeGraph(lists, opts);
-    const L = createLoader({ authShim: stubShim(), localDir: ROOT, graphFetch: graph.graphFetch, log: () => {} });
+    const L = createLoader({ authShim: stubShim(id.email), localDir: ROOT, graphFetch: graph.graphFetch, log: () => {} });
     const st = await L.load({ contract: MCP_CONTRACT });
     ok(st.ok, 'live load failed: ' + st.reason);
+    const scopeCalls = { role: [], projects: [] };
+    const stubScope = () => {
+      const g = L.evalInContext('globalThis');
+      g.getEffectiveRole = async email => { scopeCalls.role.push(email); return id.role; };
+      g.getUserProjectIds = async email => { scopeCalls.projects.push(email); return id.projectIds === null ? null : id.projectIds.map(String); };
+    };
+    stubScope();
+    // For createServer: its own load() builds a fresh context, so the stubs go back in after it,
+    // and the gate's getEffectiveRole answers the same identity.
+    const serverLoader = () => Object.assign({}, L, {
+      load: async o => { const st = await L.load(o); if (st.ok) stubScope(); return st; },
+      call: (fn, ...a) => (fn === 'getEffectiveRole' ? Promise.resolve(id.role) : L.call(fn, ...a)),
+    });
     const tools = Array.from(L.evalInContext('MCP_TOOLS'));
     const call = async (name, args) => {
       const t = tools.find(x => x.name === name);
@@ -193,7 +211,7 @@ async function run() {
       outputs.push({ name, args, text });
       return JSON.parse(text);
     };
-    return { L, graph, tools, call };
+    return { L, graph, tools, call, scopeCalls, serverLoader };
   }
 
   let main;
@@ -202,14 +220,14 @@ async function run() {
   } catch (e) {
     return [{ name: 'N-393 tools check setup (loader + fixture Graph)', ok: false, message: e.message }];
   }
-  const { L, call } = main;
+  const { L, call, serverLoader } = main;
   const allowed = Array.from(L.config().MCP.allowedLists);
   const ids = rows => rows.map(r => r.roleId);
   const day = n => addDays(today, n);
 
   await check('AC1 tools/list through the real server = newton_status + the fourteen tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
     const lines = [];
-    const gated = Object.assign({}, L, { call: (fn, ...a) => (fn === 'getEffectiveRole' ? Promise.resolve('leadership') : L.call(fn, ...a)) });
+    const gated = serverLoader();   // N-553: gate and mcpScope both Leadership
     const auth = { ensureToken: async () => 'tok', status: () => ({ storeMode: 'test', pendingSince: null }), takeLastError: () => null,
       startSignIn: async () => ({}), currentUser: () => ({ email: 'chris@example.com' }), shutdown() {} };
     const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
@@ -697,6 +715,163 @@ async function run() {
     const s = await soft.call('business_goals', {});
     eq(s.degraded, ['owner names'], 'degraded');
     eq(s.goals[0].owner, { name: 'Lena Lead', state: 'stale' }, 'snapshot name when the directory read fails');
+  });
+
+  // ── N-553 (AMCP-A2 / A3, A12): TP / DM read scoping, stubbed identities over the same fixtures ──
+  const DM = { email: 'dm.one@mg.co', role: 'delivery_manager', projectIds: ['101'] };
+  const TP = { email: 'tp.one@mg.co', role: 'talent_partner', projectIds: ['101', '102'] };
+  const UNAVAILABLE = "That Newton data isn't available to your account.";
+  const SCOPED = /your (projects|pipelines)/i;
+  const noAsOf = o => { const c = JSON.parse(JSON.stringify(o)); delete c.asOf; return JSON.stringify(c); };
+  const refusal = async (p, name, args) => {
+    const t = p.tools.find(x => x.name === name);
+    try { await t.handler(args); } catch (e) { return { code: e.code || null, message: e.message }; }
+    throw new Error(`${name} ${JSON.stringify(args)} answered; expected a refusal`);
+  };
+  const parityCalls = [
+    ['list_projects', {}], ['list_projects', { active: false }], ['project_summary', { project: 'Acme' }], ['list_roles', {}],
+    ['list_roles', { project: 'acme', flaggedOnly: true }], ['role_detail', { roleId: 201 }], ['activity_summary', {}],
+    ['activity_summary', { project: 'Acme' }], ['list_placements', { from: day(-365), to: today }],
+    ['list_placements', { from: day(-365), to: today, project: 'Bluefin' }], ['time_to_fill', {}], ['project_scorecards', {}],
+    ['bench', {}], ['utilisation', {}], ['project_team', { project: 'Acme' }], ['workforce_segmentation', {}], ['joiners', {}], ['business_goals', {}],
+  ];
+
+  await check('N-553 AC1 Admin answers equal Leadership answers on every tool (projectScopeForRole lifts Leadership\'s [] to all); a DM differs (positive control)', async () => {
+    const lead = await newLoader();
+    const admin = await newLoader({ identity: { role: 'admin', projectIds: null } });
+    for (const [name, args] of parityCalls) {
+      eq(noAsOf(await admin.call(name, args)), noAsOf(await lead.call(name, args)), `${name} ${JSON.stringify(args)} admin vs leadership`);
+    }
+    const dm = await newLoader({ identity: DM });
+    ok(noAsOf(await dm.call('list_projects', {})) !== noAsOf(await lead.call('list_projects', {})), 'positive control: the comparison sees a scoped difference');
+  });
+
+  await check('N-553 AC3 mcpScope resolves fresh on every call (getEffectiveRole + getUserProjectIds once per call, with the signed-in email); a role outside allowedRoles is refused', async () => {
+    const tp = await newLoader({ identity: TP });
+    await tp.call('list_projects', {});
+    await tp.call('list_roles', {});
+    eq([tp.scopeCalls.role, tp.scopeCalls.projects], [['tp.one@mg.co', 'tp.one@mg.co'], ['tp.one@mg.co', 'tp.one@mg.co']], 'two calls, two fresh resolutions');
+    await tp.call('time_to_fill', {});
+    eq(tp.scopeCalls.role.length, 2, 'time_to_fill (company benchmark) does not resolve scope');
+    const viewer = await newLoader({ identity: { email: 'tp.one@mg.co', role: 'viewer', projectIds: ['101'] } });
+    for (const name of ['list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements']) {
+      const args = { project_summary: { project: 'acme' }, role_detail: { roleId: 201 }, list_placements: { from: day(-30), to: today } }[name] || {};
+      const r = await refusal(viewer, name, args);
+      eq(r, { code: 'MCP_REFUSED', message: "Newton for Claude isn't available to your Newton role (viewer)." }, name + ' as a demoted viewer');
+    }
+  });
+
+  await check('N-553 AC4 list_projects: a DM sees their project, a TP theirs; scope says so', async () => {
+    const dm = await (await newLoader({ identity: DM })).call('list_projects', {});
+    eq([dm.count, dm.projects.map(p => p.name)], [1, ['Acme Bank']], 'DM');
+    ok(SCOPED.test(dm.scope), 'DM scope text: ' + dm.scope);
+    const tp = await (await newLoader({ identity: TP })).call('list_projects', {});
+    eq(tp.projects.map(p => p.name), ['Acme Bank', 'Bluefin Labs'], 'TP');
+  });
+
+  await check('N-553 AC4/AC5 project_summary: hidden, missing and out-of-scope id answer identically (own projects listed, no prefix); TP = own pipelines only, DM = the whole project', async () => {
+    const dm = await newLoader({ identity: DM });
+    const hidden = await refusal(dm, 'project_summary', { project: 'Bluefin' });
+    eq(hidden, { code: 'MCP_REFUSED', message: UNAVAILABLE + ' Your projects: Acme Bank (id 101).' }, 'hidden project');
+    eq(await refusal(dm, 'project_summary', { project: 'zzz-none' }), hidden, 'missing project answers the same');
+    eq(await refusal(dm, 'project_summary', { project: '103' }), hidden, 'out-of-scope id answers the same');
+    const d = await dm.call('project_summary', { project: 'acme' });
+    eq(d.pipelines.total, 6, 'DM: every pipeline on Acme Bank');
+    ok(SCOPED.test(d.scope), 'DM scope text: ' + d.scope);
+    const tp = await (await newLoader({ identity: TP })).call('project_summary', { project: 'acme' });
+    eq(tp.pipelines.total, 3, 'TP: tp.one\'s pipelines 201, 203, 205');
+    ok(/your own rows/.test(tp.scope), 'TP scope text: ' + tp.scope);
+  });
+
+  await check('N-553 AC4 list_roles: DM = open pipelines on their project; TP = every open pipeline on theirs (no TP narrowing, as the Roles page); hidden project refused; option lists scoped', async () => {
+    const dm = await newLoader({ identity: DM });
+    eq(ids((await dm.call('list_roles', {})).roles), [201, 202, 203], 'DM');
+    const tp = await newLoader({ identity: TP });
+    const t = await tp.call('list_roles', {});
+    eq(ids(t.roles), [201, 202, 203, 206, 209], 'TP sees tp.two\'s 202 on an own project');
+    ok(SCOPED.test(t.scope), 'TP scope text: ' + t.scope);
+    eq((await refusal(tp, 'list_roles', { project: 'Momentum' })).message, UNAVAILABLE + ' Your projects: Acme Bank (id 101), Bluefin Labs (id 102).', 'internal project outside scope');
+    await rejects(tp.call('list_roles', { country: 'UK' }), /^No country matched "UK"\. Options: Portugal, Spain\.$/, 'UK exists only on an out-of-scope role, so it is not offered');
+  });
+
+  await check('N-553 AC5 role_detail: a hidden role and a missing role answer exactly MCP_UNAVAILABLE and read nothing about the role; TP opens another TP\'s role on an own project', async () => {
+    const dm = await newLoader({ identity: DM });
+    eq(await refusal(dm, 'role_detail', { roleId: 208 }), { code: 'MCP_REFUSED', message: UNAVAILABLE }, 'hidden role (project 103)');
+    eq(await refusal(dm, 'role_detail', { roleId: 999999 }), { code: 'MCP_REFUSED', message: UNAVAILABLE }, 'missing role');
+    eq(Array.from(new Set(dm.graph.asked)).sort(), ['Projects', 'Roles'], 'no RoleHeadcount / RoleHistory / WeeklyActivity / Placements read before refusing');
+    const r = await (await newLoader({ identity: TP })).call('role_detail', { roleId: 202 });
+    eq([r.role.roleId, r.role.title], [202, 'Data Analyst'], 'TP, own project, other TP\'s role');
+    await rejects((await newLoader()).call('role_detail', { roleId: 999999 }), /^No role with id 999999\. list_roles gives role ids\.$/, 'unscoped missing message unchanged');
+  });
+
+  await check('N-553 AC4/AC7 activity_summary: TP = own rows on own projects only; anomalies on scoped inputs (S2), spikes null for one project; DM = their project\'s rows', async () => {
+    const tp = await newLoader({ identity: TP });
+    const t = await tp.call('activity_summary', { weeks: 4 });
+    const own = (await tp.L.evalInContext('getWeeklyActivity(null, null)')).filter(a => ['601', '604', '605', '606', '607'].includes(String(a.id)));
+    eq(own.length, 5, 'fixture rows found');
+    eq(t.totals, tp.L.call('mcpFunnelTotals', own), 'totals = tp.one\'s rows 601, 604-607 (not 602 / 603 tp.two, not 608 on project 103)');
+    ok(/your own rows/.test(t.scope) && SCOPED.test(t.scope), 'TP scope text: ' + t.scope);
+    const tpRoles = ['201', '203', '205', '206', '207', '209', '211'];
+    const named = t.anomalies.impossibleFunnels.rows.concat(t.anomalies.noActivity.rows).map(r => String(r.roleId));
+    ok(named.every(r => tpRoles.includes(r)), 'anomalies name only tp.one\'s roles on own projects: ' + named);
+    ok(t.anomalies.impossibleFunnels.rows.some(r => r.roleId === 206), 'positive control: 206 (Responses > Outreach) is flagged from tp.one\'s own rows');
+    ok(t.anomalies.spikes && typeof t.anomalies.spikes.total === 'number', 'TP, project omitted: spikes over own rows');
+    const dm = await newLoader({ identity: DM });
+    const d = await dm.call('activity_summary', {});
+    const dmRows = (await dm.L.evalInContext('getWeeklyActivity(null, null, { sinceWeeks: 4 })')).filter(a => ['201', '202', '203', '204', '205', '210'].includes(String(a.RoleIDLookupId)));
+    eq(d.totals, dm.L.call('mcpFunnelTotals', dmRows), 'DM totals = every row on Acme Bank');
+    ok(d.anomalies.spikes && typeof d.anomalies.spikes.total === 'number', 'DM, project omitted: spikes object');
+    eq((await dm.call('activity_summary', { project: 'acme' })).anomalies.spikes, null, 'one project: spikes null');
+  });
+
+  await check('N-553 AC4/AC6 list_placements: TP = own placements on own projects; DM = their project; an internal project in scope is kept (S1); counts match rows', async () => {
+    const w = { from: day(-365), to: today };
+    const t = await (await newLoader({ identity: TP })).call('list_placements', w);
+    eq(t.placements.map(r => r.roleId).sort(), [207, 209, 211], 'TP: placements 402, 404, 406');
+    ok(/your own rows/.test(t.scope) && SCOPED.test(t.scope), 'TP scope text: ' + t.scope);
+    const d = await (await newLoader({ identity: DM })).call('list_placements', w);
+    eq(d.placements.map(r => r.roleId), [204], 'DM: 401 only (403 is on project 103; 405 is outside the window)');
+    eq([t.summary.count, d.summary.count], [t.placements.length, d.placements.length], 'summary counts the scoped rows');
+    const internal = await (await newLoader({ identity: { email: 'dm.one@mg.co', role: 'delivery_manager', projectIds: ['103'] } })).call('list_placements', w);
+    eq(internal.placements.map(r => r.roleId), [208], 'S1: Momentum Internal kept (403), not dropped by excludeInternalProjectData');
+  });
+
+  await check('N-553 AC8 time_to_fill: a TP gets the Leadership answer', async () => {
+    const lead = await (await newLoader()).call('time_to_fill', { function: 'Engineering' });
+    const tp = await (await newLoader({ identity: TP })).call('time_to_fill', { function: 'Engineering' });
+    eq(noAsOf(tp), noAsOf(lead), 'same benchmark');
+  });
+
+  await check('N-553 AC9 empty scope: zero rows on the list tools, "no projects" refusal on a project tool', async () => {
+    const none = await newLoader({ identity: { email: 'tp.one@mg.co', role: 'talent_partner', projectIds: [] } });
+    eq([(await none.call('list_projects', {})).count, (await none.call('list_roles', {})).total,
+      (await none.call('list_placements', { from: day(-365), to: today })).summary.count,
+      (await none.call('activity_summary', {})).totals.Outreach], [0, 0, 0, 0], 'zeros');
+    eq(await refusal(none, 'project_summary', { project: 'acme' }), { code: 'MCP_REFUSED', message: UNAVAILABLE + ' Newton shows you no projects.' }, 'project tool');
+  });
+
+  await check('N-553 AC10 through the real server: DM / TP tools/list = newton_status + the seven reporting reads; a People tool is refused; a hidden project answers without the "Newton couldn\'t answer" prefix', async () => {
+    for (const who of [DM, TP]) {
+      const p = await newLoader({ identity: who });
+      const lines = [];
+      const gated = p.serverLoader();
+      const auth = { ensureToken: async () => 'tok', status: () => ({ storeMode: 'test', pendingSince: null }), takeLastError: () => null,
+        startSignIn: async () => ({}), currentUser: () => ({ email: who.email }), shutdown() {} };
+      const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
+      await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'newton_status', arguments: {} } }));
+      await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }));
+      eq(lines.find(l => l.id === 2).result.tools.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill'], who.role + ' tools/list');
+      await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'bench', arguments: {} } }));
+      const bench = lines.find(l => l.id === 3).result;
+      eq([bench.isError, bench.content[0].text], [true, `That isn't available to your Newton role (${who.role}).`], who.role + ' bench');
+      await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'project_summary', arguments: { project: 'Momentum' } } }));
+      const hid = lines.find(l => l.id === 4).result;
+      ok(hid.isError && hid.content[0].text.startsWith(UNAVAILABLE), who.role + ' hidden project: ' + hid.content[0].text);
+      await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'list_projects', arguments: {} } }));
+      const lp = lines.find(l => l.id === 5).result;
+      const lpData = JSON.parse(lp.content[0].text);
+      eq([lp.isError || false, lpData.count, SCOPED.test(lpData.scope)], [false, who.projectIds.length, true], who.role + ' list_projects through the server (stubbed scope survives the server\'s reload)');
+    }
   });
 
   // AC 9 + AC 10, over every result produced above (each handler ran in the DOM-less context).

@@ -1832,7 +1832,7 @@ const CONFIG = {
       'BusinessGoals', 'BusinessActions', 'BusinessGoalUpdates',   // N-535: business_goals. Admin + Leadership lists; goal free text is returned by design (BG-D21), emails never.
       'Notifications',   // N-546 (AMCP-A5): read only for fireNotification's dedupe check (N-548 hire prompt). Never returned.
     ],
-    allowedRoles: ['admin', 'leadership'],   // N-553 opens this to delivery_manager / talent_partner with read scoping
+    allowedRoles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // AMCP-A1: the outer gate; DM / TP reads are scoped in mcp/newton-tools.js mcpScope() (N-553)
     gateTtlMs: 600000,   // 10 minutes
     confirmTtlMs: 300000,   // 5 minutes (AMCP-A4)
     writeLists: {

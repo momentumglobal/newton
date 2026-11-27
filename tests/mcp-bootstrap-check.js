@@ -226,7 +226,7 @@ async function run() {
       const m = real.config().MCP;
       eq(Object.keys(m), ['contract', 'scripts', 'allowedLists', 'allowedRoles', 'gateTtlMs', 'confirmTtlMs', 'writeLists', 'outputDenyFields', 'windows', 'maxRows'], 'CONFIG.MCP keys, in order');
       eq([m.contract, MCP_CONTRACT, BUNDLE_VERSION], [2, 2, '2.0.0'], 'CONFIG.MCP.contract vs server-core.js MCP_CONTRACT / BUNDLE_VERSION');
-      eq(Array.from(m.allowedRoles).sort(), ['admin', 'leadership'], 'allowedRoles');
+      eq(Array.from(m.allowedRoles).sort(), ['admin', 'delivery_manager', 'leadership', 'talent_partner'], 'allowedRoles (N-553: DM / TP, scoped in mcp/newton-tools.js)');
       eq(m.confirmTtlMs, 300000, 'confirmTtlMs');
       ok(!Array.from(m.allowedLists).some(l => /PeoplePay|GPInvoices|LCI|Survey|Diagnostics/.test(l)), 'allowedLists names an MCP-D7 never-read list');
       ok(Array.from(m.allowedLists).includes('Notifications'), 'Notifications not readable (AMCP-A5)');

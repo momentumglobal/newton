@@ -53,6 +53,9 @@ var MCP_GETTER_LISTS = {
   getBusinessActions:         ['BusinessActions'],       // N-535
   getBusinessGoalUpdates:     ['BusinessGoalUpdates'],   // N-535
   getBizGoalOwnerCandidates:  ['UserAssignments', 'LeadershipAccess'],   // N-535
+  getCurrentUser:             [],                                        // N-553 mcpScope: the signed-in account (MSAL shim), no list
+  getEffectiveRole:           ['UserAssignments', 'LeadershipAccess'],   // N-553 mcpScope (AMCP-A3)
+  getUserProjectIds:          ['UserAssignments', 'Assignments'],        // N-553 mcpScope (AMCP-A3)
 };
 
 // The tools that build a company-wide aggregate must call excludeInternalProjectData (N-333);

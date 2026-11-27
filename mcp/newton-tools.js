@@ -14,6 +14,7 @@
 //     inputSchema: { type: 'object', properties: { ... }, required: [ ... ], additionalProperties: false },
 //     roles:       ['admin', 'leadership'],    // N-546 (AMCP-A1/A2): who may call it, a subset of
 //                                              // CONFIG.MCP.allowedRoles; no roles = never served
+//                                              // (N-553: the seven reporting reads add DM + TP)
 //     handler:     mcpListProjects,            // a named top-level async function (tests/lint-mcp.js),
 //                                              // called (args, ctx); ctx = frozen { email, role }
 //   }
@@ -33,6 +34,10 @@
 //     named project don't, as the Project Dashboard doesn't (N-393 B5).
 //   - The server adds asOf + newtonBuild to every result and gates every call to
 //     CONFIG.MCP.allowedRoles and then the entry's roles; handlers do neither.
+//   - N-553 (AMCP-A2 / A3): the six project-scoped reads call mcpScope() first, fresh on every
+//     call, and narrow a Delivery Manager / Talent Partner to their own projects (a TP also to
+//     their own rows where the Newton page does). Admin and Leadership answers are unchanged.
+//     Out of scope and missing answer the same (MCP_UNAVAILABLE).
 //   - newton_status is answered by the bootstrap (server-core.js), not here.
 
 // The nine WeeklyActivity funnel counts, in funnel order (computeSnapshotMetrics' activityTotals keys).
@@ -70,15 +75,81 @@ function mcpWindowDays(weeks) {
   return { from: weeksAgoDay(weeks), to: localDayISO(new Date()) };
 }
 
+// ── Scope (N-553, AMCP-A2 / A3) ───────────────────────────────────────
+// The one answer a Delivery Manager or Talent Partner gets for an id or name outside their
+// Newton scope AND for one that does not exist, so it never confirms a record exists (AMCP-A2).
+var MCP_UNAVAILABLE = 'That Newton data isn\'t available to your account.';
+
+// A user-facing refusal: server-core shows the message as written (code MCP_REFUSED).
+function mcpRefuse(message) {
+  const e = new Error(message);
+  e.code = 'MCP_REFUSED';
+  return e;
+}
+
+// Who is asking and what Newton lets them see, built from live functions only (AMCP-A3) and
+// resolved fresh on every call: no cache (N-296), and the gate's 10-minute role in ctx is not
+// used for scope. Ghost Mode does not exist under MCP, so the signed-in email is the subject.
+//   projectIds  null = every project (Admin, Leadership via projectScopeForRole); otherwise
+//               project id strings, [] when Newton scopes them to nothing (fails closed, N-472)
+//   tpEmail     a Talent Partner's email, for narrowing rows to their own; else null
+async function mcpScope() {
+  const email = getCurrentUser().email;
+  if (!email) throw mcpRefuse('Your Newton email could not be read.');
+  const role = await getEffectiveRole(email);
+  if (!CONFIG.MCP.allowedRoles.includes(role)) {
+    throw mcpRefuse(`Newton for Claude isn't available to your Newton role (${role || 'none'}).`);
+  }
+  const ids = projectScopeForRole(role, await getUserProjectIds(email));
+  const projectIds = ids === null ? null : (Array.isArray(ids) ? ids.map(String) : []);
+  return Object.freeze({
+    email,
+    role,
+    projectIds,
+    tpEmail: role === CONFIG.ROLE_IDS.TALENT_PARTNER ? email : null,
+    scoped: projectIds !== null,
+  });
+}
+
+function mcpInScope(scope, projectId) {
+  return !scope.scoped || scope.projectIds.includes(String(projectId));
+}
+
+// Rows unchanged when the caller sees everything.
+function mcpScopeProjects(scope, projects) {
+  if (!scope.scoped) return projects;
+  return (projects || []).filter(p => p && mcpInScope(scope, p.id));
+}
+
+function mcpScopeRoles(scope, roles) {
+  if (!scope.scoped) return roles;
+  return (roles || []).filter(r => r && mcpInScope(scope, r.ProjectIDLookupId || r.ProjectID || ''));
+}
+
+// A Talent Partner's own rows (tpMatches on `key`: 'TalentPartner' on Roles / WeeklyActivity /
+// Placements rows, 'tpEmail' on hireRowsWithTargets rows); everyone else's rows unchanged.
+function mcpTpOwn(scope, rows, key) {
+  if (!scope.tpEmail) return rows;
+  return (rows || []).filter(r => r && tpMatches(r[key], scope.tpEmail));
+}
+
+// 'Project X', marked as one of theirs for a scoped caller.
+function mcpProjectLabel(p, scope) {
+  return `Project ${p.CustomerName}${scope.scoped ? ' (one of your projects)' : ''}`;
+}
+
 function _mcpNameList(projects, max) {
   const names = projects.map(p => `${p.CustomerName || '(unnamed)'} (id ${p.id})`).sort();
   return names.slice(0, max).join(', ') + (names.length > max ? `, and ${names.length - max} more` : '');
 }
 
 // Project by id, exact name (case-insensitive), or a unique partial name. Throws with
-// the candidates otherwise. `projects` = getProjects(false).
-function mcpResolveProject(arg, projects) {
-  const list = (projects || []).filter(Boolean);
+// the candidates otherwise. `projects` = getProjects(false). N-553: with a scoped `scope`
+// (mcpScope) only the caller's projects can match, and no match - missing or out of scope
+// alike - is refused with MCP_UNAVAILABLE and their own projects; unscoped is unchanged.
+function mcpResolveProject(arg, projects, scope) {
+  const scoped = !!(scope && scope.scoped);
+  const list = ((scoped ? mcpScopeProjects(scope, projects) : projects) || []).filter(Boolean);
   const q = String(arg === undefined || arg === null ? '' : arg).trim();
   if (!q) throw new Error('Give a project name or id.');
   if (/^\d+$/.test(q)) {
@@ -92,6 +163,9 @@ function mcpResolveProject(arg, projects) {
   if (cands.length === 1) return cands[0];
   if (cands.length > 1) {
     throw new Error(`Project "${q}" matched ${cands.length} projects: ${_mcpNameList(cands, 8)}. Say which one (name or id).`);
+  }
+  if (scoped) {
+    throw mcpRefuse(MCP_UNAVAILABLE + (list.length ? ` Your projects: ${_mcpNameList(list, 20)}.` : ' Newton shows you no projects.'));
   }
   throw new Error(`No project matched "${q}". Projects: ${_mcpNameList(list, 20)}.`);
 }
@@ -215,6 +289,7 @@ const MCP_COMPANY_SCOPE = 'client projects only (the internal and no-dashboard p
 
 // ── list_projects ─────────────────────────────────────────────────────
 async function mcpListProjects(args) {
+  const scope = await mcpScope();
   const active = args.active !== false;
   const type = args.type || null;
   const degraded = [];
@@ -222,7 +297,7 @@ async function mcpListProjects(args) {
     getProjects(active),
     mcpSoft(getTalentPartnerDisplayMap(), {}, 'staff names', degraded),
   ]);
-  const projects = rows
+  const projects = mcpScopeProjects(scope, rows)
     .filter(p => !type || p.ProjectType === type)
     .map(p => ({
       id: mcpId(p.id),
@@ -237,7 +312,7 @@ async function mcpListProjects(args) {
     }))
     .sort((a, b) => String(a.name).localeCompare(String(b.name)));
   return mcpOutputGuard({
-    scope: `${active ? 'Active' : 'All'} projects${type ? ` of type ${type}` : ''}. kpiExcluded marks the internal and no-dashboard projects, which company figures leave out.`,
+    scope: `${scope.scoped ? 'Your projects only, as Newton scopes them to you. ' : ''}${active ? 'Active' : 'All'} projects${type ? ` of type ${type}` : ''}. kpiExcluded marks the internal and no-dashboard projects, which company figures leave out.`,
     count: projects.length,
     projects,
     degraded,
@@ -245,16 +320,17 @@ async function mcpListProjects(args) {
 }
 
 // ── project_summary ───────────────────────────────────────────────────
-// Wiring mirrors fetchDashboardData (dashboard-core.js) for a non-TP viewer, plus the CC's
-// stage-history read for the flags.
+// Wiring mirrors fetchDashboardData (dashboard-core.js), its isTP branch included (N-553), plus
+// the CC's stage-history read for the flags.
 async function mcpProjectSummary(args) {
+  const scope = await mcpScope();
   const W = CONFIG.MCP.windows;
   const weeks = mcpInt(args.weeks, 'weeks', 1, W.maxWeeks, W.summaryWeeks);
   const projects = await getProjects(false);
-  const p = mcpResolveProject(args.project, projects);
+  const p = mcpResolveProject(args.project, projects, scope);
   const degraded = [];
-  const roles = await getRolesForProject(p.id);
-  const roleIds = roles.map(r => r.id);
+  const projectRoles = await getRolesForProject(p.id);
+  const roleIds = projectRoles.map(r => r.id);
   const ids = new Set(roleIds.map(String));
   const [actRaw, plRaw, headcount, stageRows] = await Promise.all([
     getWeeklyActivity(null, null, { roleIds }),
@@ -263,8 +339,12 @@ async function mcpProjectSummary(args) {
     mcpSoft(getRoleStageHistory(), [], 'stage history', degraded),
   ]);
   // N-315 backstop: above ROLE_ID_FILTER_MAX ids the server clause is dropped.
-  const activity = actRaw.filter(a => mcpInRoleSet(ids, a));
-  const placements = plRaw.filter(pl => mcpInRoleSet(ids, pl));
+  // N-553: a Talent Partner keeps their own pipelines and rows (fetchDashboardData's isTP
+  // branch); the server filters above stay on the full role set, a superset (N-094).
+  const roles = mcpTpOwn(scope, projectRoles, 'TalentPartner');
+  const ownIds = new Set(roles.map(r => String(r.id)));
+  const activity = mcpTpOwn(scope, actRaw.filter(a => mcpInRoleSet(ids, a)), 'TalentPartner');
+  const placements = plRaw.filter(pl => mcpInRoleSet(ownIds, pl));
   const hc = dashboardHeadcountContext(roles, placements, headcount);
   const stageHistory = groupStageHistoryByRole(stageRows);
   const openPipelines = roles.filter(r => isOpenPipelineStage(r.Stage));
@@ -272,7 +352,8 @@ async function mcpProjectSummary(args) {
   const { from, to } = mcpWindowDays(weeks);
   const hires = hireKpis(hc.hires, from, to);
   return mcpOutputGuard({
-    scope: `Project ${p.CustomerName}: every pipeline on it, as the Project Dashboard shows it to Leadership. Hires = offers accepted ${from} to ${to}.`,
+    scope: `${mcpProjectLabel(p, scope)}: ${scope.tpEmail ? 'your pipelines on it and your own rows, as the Project Dashboard shows it to a Talent Partner'
+      : scope.scoped ? 'every pipeline on it, as the Project Dashboard shows it to you' : 'every pipeline on it, as the Project Dashboard shows it to Leadership'}. Hires = offers accepted ${from} to ${to}.`,
     project: { id: mcpId(p.id), name: p.CustomerName || null, type: p.ProjectType || null, status: p.Status || null, kpiExcluded: isKpiExcludedProject(p) },
     pipelines: { total: roles.length, open: openPipelines.length, byStage: mcpStageCounts(roles) },
     headcount: {
@@ -292,11 +373,12 @@ async function mcpProjectSummary(args) {
 // Flags as the CC Health tile reads them: flagActivityWeeks of activity, all stage history,
 // behind-pace from each pipeline's oldest open headcount (oldestOpenHeadcountIndex).
 async function mcpListRoles(args) {
+  const scope = await mcpScope();
   const W = CONFIG.MCP.windows;
   const degraded = [];
   const projects = await getProjects(false);
-  const p = args.project !== undefined && args.project !== null ? mcpResolveProject(args.project, projects) : null;
-  const [roles, acts, stageRows, headcount, placementIds, tpMap] = await Promise.all([
+  const p = args.project !== undefined && args.project !== null ? mcpResolveProject(args.project, projects, scope) : null;
+  const [rolesRaw, acts, stageRows, headcount, placementIds, tpMap] = await Promise.all([
     p ? getRolesForProject(p.id) : getAllRoles(),
     getActivityForAnalytics(W.flagActivityWeeks),
     mcpSoft(getRoleStageHistory(), [], 'stage history', degraded),
@@ -304,6 +386,9 @@ async function mcpListRoles(args) {
     mcpSoft(getPlacementHeadcountIds(), [], 'placement headcount', degraded),
     mcpSoft(getTalentPartnerDisplayMap(), {}, 'staff names', degraded),
   ]);
+  // N-553: project omitted = a DM / TP's own projects, internal ones included (S1). A TP sees
+  // every role on them, as the Roles page does - no row narrowing here.
+  const roles = p ? rolesRaw : mcpScopeRoles(scope, rolesRaw);
   const country = mcpResolveValue(args.country, roles.map(r => r.Location), 'country');
   const fn = mcpResolveValue(args.function, roles.map(r => r.Department), 'function');
   const stage = args.stage || null;
@@ -349,7 +434,7 @@ async function mcpListRoles(args) {
       || String(a.title).localeCompare(String(b.title)));
   const capped = mcpCapRows(picked);
   return mcpOutputGuard({
-    scope: `${p ? `Project ${p.CustomerName}` : 'All projects'}; ${stage ? `stage ${stage}` : 'open pipelines'}. Flagged = stuck in stage past its budget or low recent conversion (Newton's role flag); behind pace is information only.`,
+    scope: `${p ? mcpProjectLabel(p, scope) : (scope.scoped ? 'Your projects' : 'All projects')}; ${stage ? `stage ${stage}` : 'open pipelines'}. Flagged = stuck in stage past its budget or low recent conversion (Newton's role flag); behind pace is information only.`,
     filters: { project: p ? p.CustomerName : null, stage, flaggedOnly: !!args.flaggedOnly, country, function: fn },
     total: capped.total,
     flaggedCount: picked.filter(r => r.flagged).length,
@@ -361,19 +446,24 @@ async function mcpListRoles(args) {
 
 // ── role_detail ───────────────────────────────────────────────────────
 async function mcpRoleDetail(args) {
+  const scope = await mcpScope();
   const id = mcpInt(args.roleId, 'roleId', 1, Number.MAX_SAFE_INTEGER);
   const W = CONFIG.MCP.windows;
   const degraded = [];
-  const [roles, projects, state, history, activity, tpMap] = await Promise.all([
-    getAllRoles(),
-    getProjects(false),
+  // N-553: find the role and check scope BEFORE any read keyed on it, so a hidden role is
+  // answered exactly as a missing one (MCP_UNAVAILABLE) with nothing read about it.
+  const [roles, projects] = await Promise.all([getAllRoles(), getProjects(false)]);
+  const role = roles.find(r => String(r.id) === String(id));
+  if (scope.scoped && (!role || !mcpInScope(scope, role.ProjectIDLookupId || role.ProjectID || ''))) {
+    throw mcpRefuse(MCP_UNAVAILABLE);
+  }
+  if (!role) throw new Error(`No role with id ${id}. list_roles gives role ids.`);
+  const [state, history, activity, tpMap] = await Promise.all([
     getRoleHeadcountState(id),
     getRoleHistory(id),
     getWeeklyActivity(null, id),
     mcpSoft(getTalentPartnerDisplayMap(), {}, 'staff names', degraded),
   ]);
-  const role = roles.find(r => String(r.id) === String(id));
-  if (!role) throw new Error(`No role with id ${id}. list_roles gives role ids.`);
   // Stage rows only (groupStageHistoryByRole keeps Field 'Stage', oldest first). Other
   // RoleHistory rows log Budget / HiringManager / Notes edits with their values.
   const stageHistory = groupStageHistoryByRole(history);
@@ -429,16 +519,19 @@ async function mcpRoleDetail(args) {
 // ── activity_summary ──────────────────────────────────────────────────
 // Totals: project-scoped as the Project Dashboard reads them; company-wide client-only.
 // Anomalies: exactly the Data Health inputs (_dhFetchAnomalies, os-admin.js) - all roles,
-// full WeeklyActivity, active acknowledgements.
+// full WeeklyActivity, active acknowledgements. N-553 (S2): for a DM / TP they run on their
+// scoped inputs only - their projects' roles and rows; for a TP their own roles and own rows.
 async function mcpActivitySummary(args) {
+  const scope = await mcpScope();
   const W = CONFIG.MCP.windows;
   const weeks = mcpInt(args.weeks, 'weeks', 1, W.maxWeeks, W.activityWeeks);
   const degraded = [];
   const projects = await getProjects(false);
-  const p = args.project !== undefined && args.project !== null ? mcpResolveProject(args.project, projects) : null;
+  const p = args.project !== undefined && args.project !== null ? mcpResolveProject(args.project, projects, scope) : null;
   let roles, activity;
-  if (p) {
-    roles = await getRolesForProject(p.id);
+  if (p || scope.scoped) {
+    // One project, or (N-553) a DM / TP's own projects, internal ones included (S1).
+    roles = p ? await getRolesForProject(p.id) : mcpScopeRoles(scope, await getAllRoles());
     const ids = new Set(roles.map(r => String(r.id)));
     activity = (await getWeeklyActivity(null, null, { roleIds: roles.map(r => r.id), sinceWeeks: weeks }))
       .filter(a => mcpInRoleSet(ids, a));
@@ -448,6 +541,7 @@ async function mcpActivitySummary(args) {
     roles = clientOnly.roles;
     activity = clientOnly.activity;
   }
+  activity = mcpTpOwn(scope, activity, 'TalentPartner');   // N-553: a TP's own rows only
   const byDay = new Map();
   let undatedRows = 0;
   activity.forEach(a => {
@@ -479,7 +573,14 @@ async function mcpActivitySummary(args) {
   if (!weeklyActivityRowsUsable(fullActs)) {
     throw new Error('WeeklyActivity rows came back without role keys, so the anomaly check could not run.');
   }
-  const found = detectWeeklyActivityAnomalies(allRoles, fullActs);
+  let checkRoles = allRoles;
+  let checkActs = fullActs;
+  if (scope.scoped) {
+    checkRoles = mcpTpOwn(scope, roles, 'TalentPartner');
+    const checkIds = new Set(checkRoles.map(r => String(r.id)));
+    checkActs = mcpTpOwn(scope, fullActs.filter(a => mcpInRoleSet(checkIds, a)), 'TalentPartner');
+  }
+  const found = detectWeeklyActivityAnomalies(checkRoles, checkActs);
   const part = partitionAcknowledgedFunnels(found.impossibleFunnels, acksRes.rows);
   const projIds = p ? new Set(roles.map(r => String(r.id))) : null;
   const mine = f => !projIds || projIds.has(String(f.roleId));
@@ -499,7 +600,7 @@ async function mcpActivitySummary(args) {
   }));
   const { from, to } = mcpWindowDays(weeks);
   return mcpOutputGuard({
-    scope: `${p ? `Project ${p.CustomerName}` : `Company-wide, ${MCP_COMPANY_SCOPE}`}; weeks ending ${from} to ${to}. Conversion % has no RAG here (Newton's RAGs use learned benchmarks per population - see project_scorecards). Anomalies are the Data Health checks${p ? ' for this project\'s pipelines' : ' over every project'}.`,
+    scope: `${p ? mcpProjectLabel(p, scope) : (scope.scoped ? 'Your projects (internal ones included)' : `Company-wide, ${MCP_COMPANY_SCOPE}`)}${scope.tpEmail ? ', your own rows only' : ''}; weeks ending ${from} to ${to}. Conversion % has no RAG here (Newton's RAGs use learned benchmarks per population - see project_scorecards). Anomalies are the Data Health checks${p ? ' for this project\'s pipelines' : (scope.scoped ? ' over your projects' : ' over every project')}${scope.scoped ? ', run only on what you can see, so they can differ from the Data Health page' : ''}.`,
     weeks,
     byWeek,
     undatedRows,
@@ -520,13 +621,15 @@ async function mcpActivitySummary(args) {
 // Rows are hireRowsWithTargets() (one per filled headcount) - the rows Placement Analytics and
 // the dashboard hire KPIs count. Company-wide is client-only, as Placement Analytics.
 async function mcpListPlacements(args) {
+  const scope = await mcpScope();
   const from = mcpDay(args.from, 'from');
   const to = mcpDay(args.to, 'to');
   if (from > to) throw new Error(`from (${from}) is after to (${to}).`);
   const degraded = [];
   const [projects, allRoles] = await Promise.all([getProjects(false), getAllRoles()]);
-  const p = args.project !== undefined && args.project !== null ? mcpResolveProject(args.project, projects) : null;
-  const scopedRoles = p ? await getRolesForProject(p.id) : null;
+  const p = args.project !== undefined && args.project !== null ? mcpResolveProject(args.project, projects, scope) : null;
+  // N-553: project omitted = a DM / TP's own projects, internal ones included (S1).
+  const scopedRoles = p ? await getRolesForProject(p.id) : (scope.scoped ? mcpScopeRoles(scope, allRoles) : null);
   const roleIds = scopedRoles ? scopedRoles.map(r => r.id) : null;
   const [plRaw, headcount, tpMap] = await Promise.all([
     getPlacements(null, roleIds ? { fromDay: from, roleIds } : { fromDay: from }),
@@ -539,7 +642,8 @@ async function mcpListPlacements(args) {
     const day = mcpOutDay(r.placementDate);
     return !!day && day >= from && day <= to;
   });
-  if (!p) rows = excludeInternalProjectData({ historical: rows }, { projects, roles: allRoles }).historical;
+  if (!p && !scope.scoped) rows = excludeInternalProjectData({ historical: rows }, { projects, roles: allRoles }).historical;
+  rows = mcpTpOwn(scope, rows, 'tpEmail');   // N-553: a TP's own placements (Placements.TalentPartner), as the Placements page (N-341)
   const summary = hireKpis(rows, from, to);
   const roleById = new Map(allRoles.map(r => [String(r.id), r]));
   const plById = new Map(placements.map(pl => [String(pl.id), pl]));
@@ -570,7 +674,7 @@ async function mcpListPlacements(args) {
     .sort((a, b) => b.count - a.count || a.project.localeCompare(b.project));
   const capped = mcpCapRows(detail);
   return mcpOutputGuard({
-    scope: `${p ? `Project ${p.CustomerName}` : `Company-wide, ${MCP_COMPANY_SCOPE}`}; offers accepted ${from} to ${to}. One row per filled headcount. No candidate names or salaries are ever returned.`,
+    scope: `${p ? mcpProjectLabel(p, scope) : (scope.scoped ? 'Your projects (internal ones included)' : `Company-wide, ${MCP_COMPANY_SCOPE}`)}${scope.tpEmail ? ', your own rows only' : ''}; offers accepted ${from} to ${to}. One row per filled headcount. No candidate names or salaries are ever returned.`,
     from, to,
     summary: { count: summary.count, avgDaysToHire: summary.avgDays, onTimePct: summary.onTimePct },
     byProject,
@@ -582,7 +686,8 @@ async function mcpListPlacements(args) {
 }
 
 // ── time_to_fill ──────────────────────────────────────────────────────
-// Wiring mirrors renderPlacementAnalytics (placement-analytics.js).
+// Wiring mirrors renderPlacementAnalytics (placement-analytics.js). N-553: no mcpScope() on
+// purpose - a company benchmark (client projects only, no names) is the same for every role.
 async function mcpTimeToFill(args) {
   const degraded = [];
   const [rawHistorical, rawPlacements, rawRoles, rawStageRows, rawHeadcount, projects] = await Promise.all([
@@ -1038,7 +1143,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
-    roles: ['admin', 'leadership'],
+    roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // N-553 (AMCP-A2)
     handler: mcpListProjects,
   },
   {
@@ -1053,7 +1158,7 @@ var MCP_TOOLS = [
       required: ['project'],
       additionalProperties: false,
     },
-    roles: ['admin', 'leadership'],
+    roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // N-553 (AMCP-A2)
     handler: mcpProjectSummary,
   },
   {
@@ -1062,7 +1167,7 @@ var MCP_TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        project: { type: 'string', description: 'Project name or id (omit for all projects).' },
+        project: { type: 'string', description: 'Project name or id (omit for all projects; Talent Partners and Delivery Managers: their own projects).' },
         stage: { type: 'string', enum: CONFIG.ROLE_STAGES.slice(), description: 'Exact stage instead of all open pipelines.' },
         flaggedOnly: { type: 'boolean', description: 'Only flagged pipelines.' },
         country: { type: 'string', description: 'Location, e.g. Portugal.' },
@@ -1070,7 +1175,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
-    roles: ['admin', 'leadership'],
+    roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // N-553 (AMCP-A2)
     handler: mcpListRoles,
   },
   {
@@ -1084,7 +1189,7 @@ var MCP_TOOLS = [
       required: ['roleId'],
       additionalProperties: false,
     },
-    roles: ['admin', 'leadership'],
+    roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // N-553 (AMCP-A2)
     handler: mcpRoleDetail,
   },
   {
@@ -1093,12 +1198,12 @@ var MCP_TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        project: { type: 'string', description: 'Project name or id (omit for company-wide).' },
+        project: { type: 'string', description: 'Project name or id (omit for company-wide; Talent Partners and Delivery Managers: their own projects).' },
         weeks: { type: 'integer', description: 'Weeks back, 1-52 (default 4).' },
       },
       additionalProperties: false,
     },
-    roles: ['admin', 'leadership'],
+    roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // N-553 (AMCP-A2)
     handler: mcpActivitySummary,
   },
   {
@@ -1109,12 +1214,12 @@ var MCP_TOOLS = [
       properties: {
         from: { type: 'string', description: 'First day, YYYY-MM-DD.' },
         to: { type: 'string', description: 'Last day, YYYY-MM-DD.' },
-        project: { type: 'string', description: 'Project name or id (omit for company-wide).' },
+        project: { type: 'string', description: 'Project name or id (omit for company-wide; Talent Partners and Delivery Managers: their own projects).' },
       },
       required: ['from', 'to'],
       additionalProperties: false,
     },
-    roles: ['admin', 'leadership'],
+    roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // N-553 (AMCP-A2)
     handler: mcpListPlacements,
   },
   {
@@ -1128,7 +1233,7 @@ var MCP_TOOLS = [
       },
       additionalProperties: false,
     },
-    roles: ['admin', 'leadership'],
+    roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // N-553 (AMCP-A2)
     handler: mcpTimeToFill,
   },
   {

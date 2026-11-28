@@ -115,6 +115,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'market-report.js'),
   path.join(JS_DIR, 'lci-config.js'),
   path.join(JS_DIR, 'lci-model.js'),
+  path.join(JS_DIR, 'coe-plan-logic.js'),   // N-555: pure plan logic (declarations only); before coe-plan.js
   path.join(JS_DIR, 'coe-plan.js'),
   path.join(JS_DIR, 'dashboard-core.js'),   // N-384: periodButtons() for the SLA panel markup (declarations only)
   path.join(JS_DIR, 'report-logic.js'),     // N-550: pure Report Library rules (visibility, blocks, text <-> HTML, KPI numbers); after dashboard-core.js (DETAIL_PERIOD_OPTIONS)
@@ -148,6 +149,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, '..', 'mcp', 'newton-guides.js'),  // N-547: guide Q&A tools; after newton-tools.js (pushes onto MCP_TOOLS)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-write-tools.js'),  // N-548: write tools (log_weekly_activity); after newton-guides.js (pushes onto MCP_TOOLS)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-report-tools.js'),  // N-550: report tools (report_facts, draft_report_narrative); after newton-write-tools.js (pushes onto MCP_TOOLS)
+  path.join(TESTS_DIR, '..', 'mcp', 'newton-plan-tools.js'),    // N-555: hiring_plan + report_facts' hiringPlan helper; last (pushes onto MCP_TOOLS)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
   path.join(TESTS_DIR, 'lint-alias-consumers.js'),
@@ -214,6 +216,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-weekly-activity.js'),   // N-548
   path.join(TESTS_DIR, 'assert-role-stage.js'),        // N-549
   path.join(TESTS_DIR, 'assert-report-narrative.js'),  // N-550
+  path.join(TESTS_DIR, 'assert-coe-plan-logic.js'),    // N-555
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
   path.join(TESTS_DIR, 'assert-config-panel.js'),    // N-530
   path.join(TESTS_DIR, 'assert-bizgoals.js'),        // N-532
@@ -322,6 +325,10 @@ if (fs.existsSync(path.join(ROOT_DIR, 'mcp', 'newton-write-tools.js'))) {
 if (fs.existsSync(path.join(ROOT_DIR, 'mcp', 'newton-report-tools.js'))) {
   sandbox.MCP_SOURCES['newton-report-tools.js'] = fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-report-tools.js'), 'utf8');
 }
+// N-555: the plan tools file; lintMcpTools runs on it (read-only).
+if (fs.existsSync(path.join(ROOT_DIR, 'mcp', 'newton-plan-tools.js'))) {
+  sandbox.MCP_SOURCES['newton-plan-tools.js'] = fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-plan-tools.js'), 'utf8');
+}
 
 // N-470: lint-shared-files.js / lint-load-lists.js. TEST_RUN_FILES is SOURCE_FILES as repo-relative
 // 'js/x.js' / 'mcp/x.js'; TEST_INDEX_HTML is the browser harness page; ROOT_FILE_SET is every file
@@ -390,7 +397,8 @@ const mcpWatchdog = setTimeout(() => {
     .concat(await require('./mcp-tools-check.js').run())
     .concat(await require('./mcp-weekly-check.js').run())   // N-548: log_weekly_activity through the real loader + armed write shim
     .concat(await require('./mcp-stage-check.js').run())   // N-549: update_role_stage + the shared Stage sequence through the same loader and shim
-    .concat(await require('./mcp-report-check.js').run());   // N-550: report_facts + draft_report_narrative through the same loader and shim
+    .concat(await require('./mcp-report-check.js').run())   // N-550: report_facts + draft_report_narrative through the same loader and shim
+    .concat(await require('./mcp-plan-check.js').run());   // N-555: hiring_plan + report_facts' hiringPlan section through the same loader
   clearTimeout(mcpWatchdog);
   for (const c of mcpChecks) {
     if (c.ok) {

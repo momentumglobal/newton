@@ -35,9 +35,9 @@
 //     localDayISO(date)  today/cutoff       -> local 'YYYY-MM-DD'
 //     utcDateOnly(str)   SharePoint string  -> UTC-midnight Date for arithmetic
 //
-// coe-plan.js is a documented local-model exception (N-089): it contains no
-// banned patterns, but its coeMonday/coeWeekIndex must NOT be "migrated" to
-// the UTC helpers — doing so reintroduces N-081.
+// coe-plan.js and coe-plan-logic.js (the pure plan logic, split out in N-555) are a
+// documented local-model exception (N-089): they contain no banned patterns, but
+// coeMonday/coeWeekIndex must NOT be "migrated" to the UTC helpers — doing so reintroduces N-081.
 
 var DATE_LINT_PATTERNS = [
   { name: ".split('T')[0]",    re: /\.split\(\s*['"]T['"]\s*\)\s*\[\s*0\s*\]/ },

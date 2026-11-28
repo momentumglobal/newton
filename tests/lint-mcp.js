@@ -47,6 +47,8 @@ var MCP_GETTER_LISTS = {
   getAnomalyAcks:             ['AnomalyAcks'],
   getTalentPartnerDisplayMap: ['UserAssignments'],
   getTalentPartnersForProject: ['Assignments', 'UserAssignments'],   // N-548: log_weekly_activity's Talent Partner picker (the form's own set)
+  getCoEPlanRows:             ['CoEPlanRows'],       // N-555: hiring_plan / report_facts read a CoE project's plan rows (the Hiring Plan page's own read)
+  getHeadcountForProject:     ['RoleHeadcount'],     // N-555: the page's own headcount read for one project
   getSavedReports:            ['SavedReports'],      // N-550: report_facts / draft_report_narrative find the saved report (the Library's own read)
   getPeople:                  ['People'],            // N-394
   getSalesForecasts:          ['SalesForecasts'],    // N-394

@@ -71,6 +71,7 @@ Admin, Leadership, Delivery Manager and Talent Partner users can install **Newto
 - **Install and sign-in guide:** [`mcp/README.md`](mcp/README.md)
 - **Bundle v2 (N-546, Nov 2026):** contract 2, so every install updates once. It adds per-tool roles and the preview + confirm write path for the Advanced Newton MCP tools (N-547 onwards).
 - **DMs and TPs (N-553, Nov 2026):** the seven reporting tools, scoped to their own projects (TPs: their own rows). People tools, scorecards and goals stay Leadership and Admin.
+- **Hiring Plan (N-555, Nov 2026):** the `hiring_plan` tool and a `hiringPlan` section in `report_facts` for CoE projects, from the same code as the Hiring Plan page. DMs and TPs see the whole plan of a project in their scope.
 - **Developer notes:** the **Newton for Claude** section of [README.html](https://momentumglobal.github.io/newton/Readme.html)
 
 ## Repository and publishing

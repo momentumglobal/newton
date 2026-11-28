@@ -1822,6 +1822,7 @@ const CONFIG = {
     scripts: [
       'js/actions.js', 'js/utils.js', 'js/templates-logic.js', 'js/project-types.js', 'js/people-logic.js', 'js/revenue-logic.js',
       'js/headcount.js', 'js/permissions.js',
+      'js/coe-plan-logic.js',   // N-555: plan rows against reality (coePlanPosition) - hiring_plan calls the same code as the Hiring Plan page. Declarations only; after headcount.js.
       'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-access.js', 'js/api-people.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
       'js/bizgoals-config.js', 'js/bizgoals-data.js', 'js/bizgoals-track.js', 'js/api-bizgoals.js',   // N-535: business_goals - CONFIG.BIZGOALS; owner candidates; bizgoalsTrackerModel; the three getters
       'js/weekly-activity-logic.js', 'js/api-weekly.js',   // N-548: the weekly rules (pure) + saveWeeklyRow - log_weekly_activity calls the same code as the form and bulk grid
@@ -1832,6 +1833,7 @@ const CONFIG = {
       'mcp/newton-guides.js',   // N-547: search_guides + read_guide_section; after newton-tools.js (pushes onto MCP_TOOLS). No DOM, no list reads.
       'mcp/newton-write-tools.js',   // N-548: write tools (preview + confirm, AMCP-A4); after newton-guides.js (pushes onto MCP_TOOLS).
       'mcp/newton-report-tools.js',   // N-550: report_facts + draft_report_narrative; after newton-write-tools.js (reuses mcpWeeklyStale; pushes onto MCP_TOOLS).
+      'mcp/newton-plan-tools.js',   // N-555: hiring_plan + the Hiring Plan facts report_facts carries (mcpPlanForReport); last, read-only (pushes onto MCP_TOOLS).
     ],
     allowedLists: [
       'Projects', 'Roles', 'RoleHeadcount', 'RoleHistory', 'WeeklyActivity', 'Placements',
@@ -1840,6 +1842,7 @@ const CONFIG = {
       'BusinessGoals', 'BusinessActions', 'BusinessGoalUpdates',   // N-535: business_goals. Admin + Leadership lists; goal free text is returned by design (BG-D21), emails never.
       'Notifications',   // N-546 (AMCP-A5): read only for fireNotification's dedupe check (N-548 hire prompt). Never returned.
       'SavedReports',    // N-550 (AMCP-E2): report_facts reads the report row; only its text blocks are returned, never ModuleOrder itself (outputDenyFields).
+      'CoEPlanRows',     // N-555 (AMCP-F2): hiring_plan reads a CoE project's plan rows (title, TP, dates, links); talent partners are returned as names, never emails. No money field exists on the list.
     ],
     allowedRoles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'],   // AMCP-A1: the outer gate; DM / TP reads are scoped in mcp/newton-tools.js mcpScope() (N-553)
     gateTtlMs: 600000,   // 10 minutes

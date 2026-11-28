@@ -3,7 +3,7 @@
 // report_facts (read) and draft_report_narrative (write, preview + confirm). The pair works on an EXISTING saved report
 // in the Report Library, found by project + title (AMCP-E1): report_facts returns the report's layout, its text blocks
 // as plain text and counts-and-dates facts for the report's own period and role filter (AMCP-E7: no candidate names, no
-// money); draft_report_narrative replaces the text blocks Claude names, after the user has seen old and new text side by
+// money; N-555 adds facts.hiringPlan for a CoE project, from mcp/newton-plan-tools.js); draft_report_narrative replaces the text blocks Claude names, after the user has seen old and new text side by
 // side. It never creates a report, never touches panels, order, title, period or scope, and never exports or shares
 // anything (Newton has no such state: export is a browser print). Served from GitHub Pages and loaded into the MCP
 // server's vm context after mcp/newton-write-tools.js (CONFIG.MCP.scripts order); it pushes both entries onto MCP_TOOLS.
@@ -105,7 +105,7 @@ function mcpReportFunnel(acts) {
 }
 
 // Counts and dates for the report's own scope: mirrors rbFetchData (project scope) and fetchDashboardData's isTP branch.
-async function mcpReportBuildFacts(report, scope, degraded) {
+async function mcpReportBuildFacts(report, scope, degraded, project) {
   var projectId = mcpReportProjectOf(report);
   var projectRoles = await getRolesForProject(projectId);
   var roleIds = projectRoles.map(function (r) { return r.id; });
@@ -184,7 +184,15 @@ async function mcpReportBuildFacts(report, scope, degraded) {
   var cappedLong = mcpCapRows(longOpen);
   var cappedFlag = mcpCapRows(flagged);
   var cappedStart = mcpCapRows(starters);
-  return {
+  // N-555 (AMCP-F1, F4): a CoE project's hiring plan as it stood at the period's end (capped at today). The WHOLE plan: not the report's
+  // role filter and not a Talent Partner's own rows, so it gets every placement on the project's roles, not the narrowed `placements`.
+  var hiringPlan = await mcpPlanForReport(project, win.end, {
+    roles: projectRoles,
+    placements: reads[1].filter(function (pl) { return mcpInRoleSet(allIds, pl); }),
+    headcount: reads[2],
+    tpMap: tpMap,
+  }, degraded);
+  var built = {
     kpiPeriod: kpiKey,
     period: win,
     roleFilter: roleFilter && roleById.get(roleFilter) ? mcpWeeklyRoleLabel(roleById.get(roleFilter)) : (roleFilter ? 'One role (not one you can see)' : 'All roles'),
@@ -211,6 +219,8 @@ async function mcpReportBuildFacts(report, scope, degraded) {
     notIncluded: ['candidate names', 'salary and spend figures', 'rejection reasons and counts (not readable through Claude)', 'Notes'],
     role: scope.tpEmail ? 'Your own roles and rows on this project, as the report itself shows a Talent Partner.' : 'Every role on the project that the report\'s role filter includes.',
   };
+  if (hiringPlan) built.facts.hiringPlan = hiringPlan;   // absent when the project is not CoE, has no plan rows or the plan could not be read
+  return built;
 }
 
 async function mcpReportFacts(args) {
@@ -239,7 +249,7 @@ async function mcpReportFacts(args) {
   var report = mcpReportResolve(args.report, args.project, scope, reads[0], projects);
   var blocks = reportBlocks(report.ModuleOrder);
   var layout = reportLayout(blocks);
-  var built = await mcpReportBuildFacts(report, scope, degraded);
+  var built = await mcpReportBuildFacts(report, scope, degraded, projById.get(mcpReportProjectOf(report)));
   var pr = projById.get(mcpReportProjectOf(report));
   var texts = reportTextBlocks(blocks).map(function (t) {
     var tr = mcpReportTrimText(t.text);
@@ -354,7 +364,7 @@ async function mcpReportDraftCommit(plan, ctx) {
 MCP_TOOLS.push(
   {
     name: 'report_facts',
-    description: 'A saved project report from the Report Library (by title and project): its layout, the text in each text block, and counts and dates for its period (KPIs, funnel, roles, flags, hires, starters). No names or money. Without a report it lists the ones you can update. Use before draft_report_narrative.',
+    description: 'A saved project report from the Report Library (by title and project): its layout, text blocks, and counts and dates for its period (KPIs, funnel, roles, flags, hires, starters, CoE hiring plan). No names or money. No report: lists those you can update. Use before draft_report_narrative.',
     inputSchema: {
       type: 'object',
       properties: {

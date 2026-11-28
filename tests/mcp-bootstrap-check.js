@@ -233,7 +233,7 @@ async function run() {
       ok(Array.from(m.allowedLists).includes('Notifications'), 'Notifications not readable (AMCP-A5)');
       Object.keys(m.writeLists).forEach(l => ok(WRITE_LIST_CEILING.includes(l), `writeLists.${l} is outside the bundle WRITE_LIST_CEILING`));
       eq(WRITE_LIST_CEILING, ['WeeklyActivity', 'Roles', 'RoleHistory', 'Notifications', 'SavedReports'], 'WRITE_LIST_CEILING (AMCP-A5)');
-      eq(m.scripts.slice(-4), ['mcp/newton-tools.js', 'mcp/newton-guides.js', 'mcp/newton-write-tools.js', 'mcp/newton-report-tools.js'], 'newton-tools.js, then newton-guides.js, newton-write-tools.js and newton-report-tools.js (which push onto MCP_TOOLS), load last');
+      eq(m.scripts.slice(-5), ['mcp/newton-tools.js', 'mcp/newton-guides.js', 'mcp/newton-write-tools.js', 'mcp/newton-report-tools.js', 'mcp/newton-plan-tools.js'], 'newton-tools.js, then newton-guides.js, newton-write-tools.js, newton-report-tools.js and newton-plan-tools.js (which push onto MCP_TOOLS), load last');
     });
 
     await check('AC2 js/config.js + CONFIG.MCP.scripts load into one vm context with no DOM; no Node or browser globals leak in', async () => {

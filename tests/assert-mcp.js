@@ -22,6 +22,9 @@ function _mcpThrows(fn, re, label) {
   throw new Error(`${label}: did not throw`);
 }
 
+// N-551 (AMCP-7): the headings of mcp/README.md, in order. The README is also what search_guides splits by heading.
+var MCP_N551_README_HEADS = ['What it is', 'What you can do', 'How changes work', 'What it cannot do', 'What each role sees', 'Before you start', 'Install', 'First sign-in', 'Things to ask', 'Signing in again', 'Updating', 'Uninstalling', 'If something goes wrong', 'Privacy and safety'];
+
 ASSERTIONS.push(
   {
     name: 'N-393 AC1 / N-394 AC1 MCP_TOOLS: the eight reporting tools then bench, utilisation, project_team; named handlers declared once, closed schemas, enums from CONFIG',
@@ -264,13 +267,13 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-395 mcp/README.md — the ten headings in order, the download URL and update message quoted from server-core.js, both token paths, no secret-looking text',
+    name: 'N-395 mcp/README.md — the fourteen headings in order (N-551), the download URL and update message quoted from server-core.js, both token paths, no secret-looking text',
     fn: function () {
       if (typeof REPO_FILES === 'undefined' || typeof REPO_FILES.mcpReadme !== 'string') return _skip('Install-guide check needs filesystem access — runs under node tests/run.js');
       const g = REPO_FILES.mcpReadme.replace(/\r\n/g, '\n');   // Windows checkouts may use CRLF
       const core = REPO_FILES.mcpServerCore;
       if (!g) throw new Error('mcp/README.md is missing or empty');
-      const heads = ['What it is', 'Before you start', 'Install', 'First sign-in', 'Things to ask', 'Signing in again', 'Updating', 'Uninstalling', 'If something goes wrong', 'Privacy and safety'];
+      const heads = MCP_N551_README_HEADS;
       let at = -1;
       heads.forEach(h => {
         const i = g.indexOf('\n## ' + h + '\n');
@@ -290,7 +293,7 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-401 mcp/README.md renders through mdGuideToHtml: ten h2 in order, download link, every table row, no leftover markers or scripts',
+    name: 'N-401 mcp/README.md renders through mdGuideToHtml: fourteen h2 in order (N-551), download link, every table row, no leftover markers or scripts',
     fn: function () {
       const g = REPO_FILES.mcpReadme;
       if (typeof g === 'undefined') _skip('REPO_FILES is supplied by tests/run.js; the browser runner has no filesystem.');
@@ -299,7 +302,7 @@ ASSERTIONS.push(
       if (!url) throw new Error('DOWNLOAD_URL not found in mcp/bootstrap/server-core.js');
       const html = mdGuideToHtml(g);
       const h2 = (html.match(/<h2[^>]*>([^<]*)<\/h2>/g) || []).map(h => h.replace(/<[^>]+>/g, ''));
-      _assertEqual(h2, ['What it is', 'Before you start', 'Install', 'First sign-in', 'Things to ask', 'Signing in again', 'Updating', 'Uninstalling', 'If something goes wrong', 'Privacy and safety'], 'h2 headings in order');
+      _assertEqual(h2, MCP_N551_README_HEADS, 'h2 headings in order');
       if (html.indexOf('<a href="' + url + '"') < 0) throw new Error('rendered guide does not link DOWNLOAD_URL ' + url);
       const rows = g.split(/\r?\n/).filter(l => /^\|/.test(l) && !/^\|[ :|-]*-[ :|-]*\|\s*$/.test(l)).length;
       _assertEqual((html.match(/<tr>/g) || []).length, rows, 'table rows in the guide vs rendered <tr>');
@@ -307,6 +310,64 @@ ASSERTIONS.push(
         if (re.test(html)) throw new Error('rendered guide contains ' + re + ' - the README uses syntax the renderer does not handle');
       });
       if (html.indexOf('Claude_&lt;id&gt;') < 0) throw new Error('Claude_<id> must render as visible text');
+    },
+  },
+  // ── N-551 (AMCP-7): docs match the tools ─────────────────────────────────
+  {
+    name: 'N-551 doc drift: every registered tool is named in mcp/README.md, and every tool but newton_status in the user guide section',
+    fn: function () {
+      if (typeof REPO_FILES === 'undefined' || typeof MCP_GUIDE_TEXTS === 'undefined') return _skip('Doc check needs filesystem access - runs under node tests/run.js');
+      const readme = REPO_FILES.mcpReadme;
+      const guide = MCP_GUIDE_TEXTS['user-guide.html'];
+      const a = guide.indexOf('<div class="guide-section" id="newton-for-claude">');
+      if (a < 0) throw new Error('user-guide.html lacks the #newton-for-claude section');
+      const b = guide.indexOf('<div class="guide-section"', a + 10);
+      const section = guide.slice(a, b < 0 ? guide.length : b);
+      const names = MCP_TOOLS.map(t => t.name).concat(['newton_status']);
+      const missingReadme = names.filter(n => readme.indexOf(n) < 0);
+      _assertEqual(missingReadme, [], 'tools not named in mcp/README.md');
+      // The user guide explains in prose; it need not quote tool ids, but must cover each capability.
+      ['hiring plan', 'weekly activity', 'stages', 'report', 'preview', 'Windows'].forEach(w => {
+        if (section.toLowerCase().indexOf(w.toLowerCase()) < 0) throw new Error('user guide section does not mention "' + w + '"');
+      });
+      // Positive control: a tool name that is not documented is reported.
+      _assertEqual(['not_a_tool'].filter(n => readme.indexOf(n) < 0), ['not_a_tool'], 'control: an undocumented name is detected');
+    },
+  },
+  {
+    name: 'N-551 README claims match the code: limits, confirm expiry, role gate and error messages',
+    fn: function () {
+      if (typeof REPO_FILES === 'undefined' || typeof REPO_FILES.mcpReadme !== 'string') return _skip('Doc check needs filesystem access - runs under node tests/run.js');
+      const g = REPO_FILES.mcpReadme.replace(/\r\n/g, '\n');
+      const core = REPO_FILES.mcpServerCore;
+      const lim = CONFIG.MCP;
+      if (g.indexOf('Up to ' + lim.maxWeeklyEntries + ' role-weeks') < 0) throw new Error('README must state the ' + lim.maxWeeklyEntries + ' role-week limit');
+      if (g.indexOf('Up to ' + lim.maxStageMoves + ' roles') < 0) throw new Error('README must state the ' + lim.maxStageMoves + ' role move limit');
+      if (g.indexOf('Up to ' + lim.maxNarrativeEdits + ' text blocks') < 0) throw new Error('README must state the ' + lim.maxNarrativeEdits + ' text block limit');
+      _assertEqual(lim.confirmTtlMs, 300000, 'confirm expiry the README calls 5 minutes');
+      if (g.indexOf('A preview lasts 5 minutes') < 0) throw new Error('README must state the 5 minute preview expiry');
+      // Messages quoted in the troubleshooting table come from server-core.js / newton-write-tools.js.
+      const quoted = [
+        "That confirmation has expired or was already used. Ask for a new preview.",
+        "This changed in Newton since the preview. Ask again for a new preview.",
+        "Newton is still saving that change. Check Newton before trying again.",
+        "That Newton data isn't available to your account.",
+        "Newton for Claude isn't available to your Newton role",
+        "That isn't available to your Newton role",
+      ];
+      quoted.forEach(m => {
+        if (g.indexOf(m) < 0) throw new Error('README lacks the message: ' + m);
+        if (core.indexOf(m.replace(/'/g, "\\'")) < 0 && core.indexOf(m) < 0) throw new Error('server-core.js lacks the message the README quotes: ' + m);
+      });
+      ['Log at most ' + lim.maxWeeklyEntries + ' role-weeks in one go.', 'Move at most ' + lim.maxStageMoves + ' roles in one go.'].forEach(m => {
+        if (g.indexOf(m) < 0) throw new Error('README lacks the message: ' + m);
+      });
+      ["mcpRefuse('Log at most ' + max + ' role-weeks in one go.')", "mcpRefuse('Move at most ' + max + ' roles in one go.')"].forEach(m => {
+        if (MCP_SOURCES['newton-write-tools.js'].indexOf(m) < 0) throw new Error('write tools lack the message the README quotes: ' + m);
+      });
+      ['Read-only.', 'Leadership and Admin only.'].forEach(w => {
+        if (g.indexOf('**' + w.replace('.', '') + '**') >= 0 || g.indexOf(w) >= 0) throw new Error('README still says "' + w + '" about the product as a whole');
+      });
     },
   },
 );

@@ -47,6 +47,7 @@ const DIAG_MODULES = {
   'sales.html':            'sales',
   'command-centre.html':   'command',
   'my-momentum.html':      'myMomentum',
+  'newton-for-claude.html': 'claude',
   'index.html':            'index',
   'admin.html':            'admin',
   'mobile.html':           'mobile',

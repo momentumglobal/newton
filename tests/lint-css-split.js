@@ -35,6 +35,7 @@ var CSS_SPLIT_LINKS = {
   'index.html': ['css/style.css', 'css/homepage.css', 'css/engagement.css'],
   'market-reporting.html': ['css/style.css', 'css/report-builder.css'],
   'my-momentum.html': ['css/style.css', 'css/engagement.css', 'css/people.css', 'css/my-momentum.css'],
+  'newton-for-claude.html': ['css/style.css', 'css/command-centre.css'],   // N-551: the install guide reuses the Command Centre's .cc-guide* rules
   'people.html': ['css/style.css', 'css/engagement.css', 'css/people.css'],
   'reporting.html': ['css/style.css', 'css/report-builder.css', 'css/coe-plan.css', 'css/roles.css', 'css/reporting.css'],
   'sales.html': ['css/style.css', 'css/lci.css'],

@@ -321,6 +321,7 @@
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Newton for Claude &mdash; reporting reads (N-553; scorecards, People tools and goals stay Admin + Leadership)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>✓ own projects</td><td>✓ own projects, own rows</td><td>—</td><td>—</td></tr>
         <tr><td>Newton for Claude &mdash; guide Q&amp;A: search_guides, read_guide_section (N-547; the user guides hold no sensitive data)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Newton for Claude &mdash; install page, <span class="file-tag">newton-for-claude.html</span> (N-551; the guide and the download button)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
       </table>
       <p class="readme-note readme-note--sm">* Delivery Managers see only LCI Cost Models assigned to them (matched on the model's Assigned DM email); Revenue Tracking and Sales Forecast stay Admin/Leadership. † Hiring Plan only appears for CoE projects (<code>ProjectType = CoE</code>).</p>
       <p><strong>Internal (non-deployable) staff</strong> — Marketing, Sales, Internal TA, Operations and People staff on the People list (N-304; the list is <code>CONFIG.INTERNAL_FUNCTIONS</code>) — get access through a role per function (N-326 / N-331): People → <code>people_ops</code>, Sales and Marketing → <code>sales</code>, Operations → <code>staff</code>. An admin adds one UserAssignments row per person (Customer is ignored; saved with ProjectID 0). People Ops also need the <em>Newton People</em> SharePoint group and Sales &amp; Marketing the <em>Newton Sales</em> group (N-334) — without it their pages load empty, never more. Newton People has <strong>read-only</strong> access to SalesForecasts, for the People Dashboard's sales-forecast utilisation line (N-334). Staff and Internal TA need only the row. Joiner steps: see "Internal staff joiner" below "Adding a Newton user". The role is <strong>not</strong> derived from <code>People.StaffFunction</code>. Desktop only: the mobile view shows "Access Restricted".</p>
@@ -407,6 +408,7 @@
         <tr><td><span class="file-tag">sales.html</span></td><td>Sales module entry point.</td></tr>
         <tr><td><span class="file-tag">market-reporting.html</span></td><td>Market Analytics module entry point.</td></tr>
         <tr><td><span class="file-tag">command-centre.html</span></td><td>MG Command Centre entry point.</td></tr>
+        <tr><td><span class="file-tag">newton-for-claude.html</span></td><td>Newton for Claude install page entry point (N-551): the install guide and download button for Admin, Leadership, Delivery Managers and Talent Partners. Module key <code>claude</code>, in the module switcher but with no home tile; Windows desktop only, so not in the mobile launcher.</td></tr>
         <tr><td><span class="file-tag">admin.html</span></td><td>Newton OS Admin — platform-level administration.</td></tr>
         <tr><td><span class="file-tag">user-guide.html</span></td><td>Reporting module user guide.</td></tr>
         <tr><td><span class="file-tag">people-user-guide.html</span></td><td>People module user guide (PDP Setup and Calibration included; Scorecards, My Development and Team Development are pointers since N-458).</td></tr>
@@ -643,7 +645,10 @@
         <tr><td><span class="file-tag">js/cc-nav.js</span></td><td>Calls renderModuleNav() with CC params. renderCCNav(), toggleCCModuleDropdown(), navigateToCC() (N-401 / N-533: dispatches through <code>CC_RENDERERS</code> &mdash; <code>overview</code> / <code>goals</code> / <code>claudeMcp</code>; an unknown page falls back to Overview; leaving Goals &amp; Actions with an unsaved form asks first).</td></tr>
         <tr><td><span class="file-tag">js/cc-app.js</span></td><td>Module init — MSAL redirect, role check, sets app-shell display:flex, calls renderCCNav() and renderCCOverview(). N-401: <code>handleCCDeepLink()</code> opens the page named in <code>#hash</code> (set by the Command Bar from another module).</td></tr>
         <tr><td><span class="file-tag">js/cc-pages.js</span></td><td>All CC renderers: renderCCOverview(), tile builders, RAG calculations (computePeopleRAG; computeProjectHealthRAG moved to analytics.js in N-391, with the Health counts, scorecard customer list and Utilisation outlook), expandable detail panel renderers (renderRevenueDetail — calls the shared chart, renderHealthDetail, renderPeopleDetail, renderUtilDetail). renderHealthDetail (N-336) loads 52 weeks of activity + placements on first expand (cached on <code>grid._data.healthExtra</code>) and renders project scorecard cards via _ccHealthCardsHTML(); window toggle action ccHealthWindow. Revenue stats: ccRevenueStats() (the revenue maths and computeRevenueRAG() are in analytics.js, N-323). Health tile trend arrow: computeHealthTrend(), _ccTrendArrowHTML() — reads Snapshots, degrades to nothing below 3 weeks of history. <strong>N-385:</strong> the Project Health detail ends with an <strong>SLA roll-up</strong> (<code>ccMountSlaRollup()</code>, Admin / Leadership) below the scorecards: last 90 days, loaded on expand and cached; the scorecard window toggle re-renders only the scorecards. <strong>N-534:</strong> the fifth Overview tile, <strong>Goals &amp; Actions</strong> (<code>ccGoalsTileHTML()</code>, <code>ccGoalsTileText()</code>) &mdash; a link to <code>#goals</code>, not an expandable tile; <code>attachTileExpand()</code> skips <code>.cc-tile--link</code>.</td></tr>
-        <tr><td><span class="file-tag">js/cc-claude.js</span></td><td>N-401: Command Centre "Newton for Claude" page. <code>renderCCClaudePage()</code> shows a download button for <code>mcp/newton-for-claude.mcpb</code> (built by the deploy workflow, not in the repo) and the leadership install guide, fetched from <code>mcp/README.md</code> on each visit and rendered by <code>mdGuideToHtml()</code> in utils.js, so there is no second copy of the guide. Load failure shows a Retry action (<code>ccClaudeRetry</code>). Admin and Leadership only (page registered in cc-router.js).</td></tr>
+        <tr><td><span class="file-tag">js/cc-claude.js</span></td><td>N-401: the "Newton for Claude" install page renderer. <code>renderCCClaudePage()</code> shows a download button for <code>mcp/newton-for-claude.mcpb</code> (built by the deploy workflow, not in the repo) and the install guide, fetched from <code>mcp/README.md</code> on each visit and rendered by <code>mdGuideToHtml()</code> in utils.js, so there is no second copy of the guide. Load failure shows a Retry action (<code>ccClaudeRetry</code>). N-551: loaded on command-centre.html (page registered in cc-router.js, Admin and Leadership) and on newton-for-claude.html (claude-router.js, all four roles).</td></tr>
+        <tr><td><span class="file-tag">js/claude-router.js</span></td><td>N-551: page registry for newton-for-claude.html. Defines CLAUDE_PAGES (one page, key <code>claudeInstall</code>), claudeCanAccess(), claudeGetAccessiblePages(). Access: Admin, Leadership, Delivery Manager, Talent Partner (the same four as <code>CONFIG.MCP.allowedRoles</code>).</td></tr>
+        <tr><td><span class="file-tag">js/claude-nav.js</span></td><td>N-551: calls renderModuleNav() with the Newton for Claude params. renderClaudeNav(), toggleClaudeModuleDropdown(), navigateToClaude() (renders the shared <code>renderCCClaudePage()</code>).</td></tr>
+        <tr><td><span class="file-tag">js/claude-app.js</span></td><td>N-551: module init for newton-for-claude.html. Signed out goes to reporting.html, a role without access goes home; renders the nav, the Command Bar and the install page. No deep-link handler (one page).</td></tr>
       </table>
 
       <h3>Admin</h3>
@@ -1014,6 +1019,24 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 <span class="code-key">bizgoals-track-ui.js</span>  <span class="code-comment">&larr; N-533: Goals &amp; Actions page; after cc-pages.js, before cc-claude.js</span>
 <span class="code-key">cc-claude.js</span>  <span class="code-comment">&larr; N-401: after utils.js and cc-pages.js, before cc-app.js</span>
 <span class="code-key">cc-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
+      </div>
+
+      <h3>newton-for-claude.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">analytics.js</span>
+<span class="code-key">sla-targets.js</span>
+<span class="code-key">sla-engine.js</span>
+<span class="code-key">nav-core.js</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">notifications.js</span>
+<span class="code-key">cc-claude.js</span>  <span class="code-comment">&larr; N-401, shared with command-centre.html since N-551: the page renderer, before the module files that call it</span>
+<span class="code-key">claude-router.js</span>  <span class="code-comment">&larr; N-551</span>
+<span class="code-key">claude-nav.js</span>  <span class="code-comment">&larr; N-551</span>
+<span class="code-key">claude-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
       </div>
 
       <h3>admin.html</h3>
@@ -1438,7 +1461,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
         <li><strong>Visual Finish regression sweep (Nov 2026, N-419):</strong> the last task of the Visual Finish epic (N-404 &rarr; N-419) audited the five desktop modules (Reporting, People, Sales, Market Reporting, Admin) in light and dark: every text node and bordered control for WCAG contrast, every Tab stop for a visible focus indicator, every print entry point as a PDF in both themes. The keyboard walk found no defects (1,226 stops, all with a ring). Fixed: row-action and "&mdash;" placeholder text drawn in the 3:1 icon grey (<code>--text-faint</code>) now uses <code>--text-muted</code>; the dark <code>--text-link</code>, <code>--brand-tertiary</code> and engagement/tab blues were 2.5&ndash;2.7:1 and are themed; the notification badge, org-chart subtitles and TP node name, the active-filter "?" chip and the sortable-header arrow were each under their threshold; <code>.data-table .row-actions a</code> was hidden in print. Deliberately not themed, and allow-listed by the sweep: the pale status pills (<code>--status-*-solid</code> / <code>-on-pale</code>), the TTF badge, the LCI status chips and the org TP node, which carry their own light surface in both themes.</li>
         <li><strong>Stylesheet map (Oct 2026, N-349b):</strong> <code>style.css</code> holds what every page needs — the tokens and dark-mode block, shell, sidebar, forms, buttons, tables, badges, dashboard and KPI, the print foundation, and shared components (rich-text, empty state, notifications, skeleton, toast, command bar). CSS used by one module lives in that module's sheet, which loads <em>after</em> <code>style.css</code> and is linked only by the shells that render it. A rule goes in a module sheet only if every shell that can render it links that sheet; if two shells with different sheet sets use it, it stays in <code>style.css</code>. Module print rules and named <code>@page</code> contexts move with their module. <code>printPage()</code> appends the landscape <code>@page</code> rule to the <em>last</em> stylesheet on the page, so keep the module sheets before <code>reporting.css</code>/<code>admin.css</code>. <code>tests/lint-css-split.js</code> fails the build if a shell's links drift from the table below, a rule is defined in two files, or a shell can render a sheet it does not link.
           <ul>
-            <li><code>command-centre.css</code> — command-centre.html</li>
+            <li><code>command-centre.css</code> — command-centre.html, newton-for-claude.html (N-551: the install guide reuses the <code>.cc-guide*</code> rules)</li>
             <li><code>homepage.css</code> — index.html (homepage, Command Centre banner, Quick Links drawer)</li>
             <li><code>engagement.css</code> — people.html, survey.html, index.html (survey widget, respondent page, Engagement results)</li>
             <li><code>people.css</code> — people.html (Payroll Summary, Org Chart)</li>
@@ -1646,7 +1669,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <!-- NEWTON FOR CLAUDE (MCP) -->
     <div class="section" id="sec-mcp">
       <div class="section-title">Newton for Claude</div>
-      <p class="section-intro">A local MCP server that lets Admin, Leadership, Delivery Manager and Talent Partner users ask Claude Desktop (Windows) questions about Newton and get answers computed by Newton's own code. DMs and TPs see only what Newton shows them: their own projects, and for a TP their own rows (N-553). Scoped, built and closed out as N-378, N-390 to N-395 (Wishlist AI-5). Bundle v2 (N-546, contract 2, epic N-544, decisions AMCP-A1&ndash;A12 in <span class="file-tag">newton-pipeline/specs/N-545.md</span>) adds per-tool roles and the write path for the epic's tools (guides N-547, weekly activity N-548, role stage N-549, report narrative N-550); until those land every tool is still read-only. The install guide for users is <span class="file-tag">mcp/README.md</span>; since N-401 it is also shown, rendered from that file, at Command Centre &rarr; Newton for Claude (Admin and Leadership), with a download button for the bundle.</p>
+      <p class="section-intro">A local MCP server that lets Admin, Leadership, Delivery Manager and Talent Partner users ask Claude Desktop (Windows) questions about Newton and get answers computed by Newton's own code. DMs and TPs see only what Newton shows them: their own projects, and for a TP their own rows (N-553). Scoped, built and closed out as N-378, N-390 to N-395 (Wishlist AI-5). Bundle v2 (N-546, contract 2, epic N-544, decisions AMCP-A1&ndash;A12 in <span class="file-tag">newton-pipeline/specs/N-545.md</span>) adds per-tool roles and the write path for the epic's tools (guides N-547, weekly activity N-548, role stage N-549, report narrative N-550, Hiring Plan N-555). Admin, Delivery Managers and Talent Partners can make changes (each previewed and confirmed first); Leadership is read-only. The install guide for users is <span class="file-tag">mcp/README.md</span> (rewritten for Delivery Managers and Talent Partners in N-551). It is shown, rendered from that file, with a download button for the bundle, on the Newton for Claude page (<span class="file-tag">newton-for-claude.html</span>, in the module switcher for all four roles) and at Command Centre &rarr; Newton for Claude (Admin and Leadership). The same text is what <code>search_guides</code> answers from.</p>
 
       <h3>Decisions</h3>
       <table>
@@ -1672,7 +1695,24 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
         <tr><td>AMCP-F3</td><td>An actual hire is an accepted offer: the earliest <code>Placements.OfferAcceptedDate</code> on the plan row&rsquo;s linked headcount, as the Gantt&rsquo;s &check; marker. The start date is returned per row but is not the hires measure.</td></tr>
         <tr><td>AMCP-F4</td><td>DMs and TPs see the whole plan of every CoE project in their scope, not only their own rows, because the planned-vs-actual totals only reconcile over the whole plan. Out-of-scope and unknown projects get the standard unavailable answer.</td></tr>
         <tr><td>AMCP-F5</td><td><code>project</code> omitted lists the CoE projects in scope that have a plan; any CoE project in scope qualifies, live or ended; optional <code>asOf</code> (today or earlier) gives the position on a past day.</td></tr>
+        <tr><td>AMCP-G1</td><td>Install home (N-551, Chris 28 Nov 2026): a standalone page <code>newton-for-claude.html</code> in the module switcher for Admin, Leadership, Delivery Managers and Talent Partners (<code>claude-router.js</code>, page key <code>claudeInstall</code>). The Command Centre page stays; both render <code>renderCCClaudePage()</code> (<code>cc-claude.js</code>) from <code>mcp/README.md</code>, so there is one copy of the guide. Admin and Leadership see the entry twice in the Command Bar, by design.</td></tr>
+        <tr><td>AMCP-G2</td><td><code>mcp/README.md</code> is one guide written for Delivery Managers and Talent Partners first, with Admin / Leadership company-wide reads as a short note (N-551). Live text only: no reinstall. <code>tests/assert-mcp.js</code> checks every registered tool is named in it, that its limits, 5-minute preview expiry and quoted messages match the code, and that it renders cleanly.</td></tr>
       </table>
+
+      <h3>Advanced Newton MCP epic (N-544 to N-552, Nov 2026)</h3>
+      <p>Newton for Claude went from a read-only Leadership tool to a day-to-day assistant for the delivery team. Decisions AMCP-D1&ndash;D7 are in <span class="file-tag">newton-pipeline/Newton_AdvancedMCP_Nov2026.md</span>; the design record is <span class="file-tag">newton-pipeline/specs/N-545.md</span>.</p>
+      <table>
+        <tr><th>Task</th><th>What it added</th></tr>
+        <tr><td>N-545 / N-546</td><td>ADR; bundle v2 (contract 2): per-tool roles, the armed write shim, confirm tokens, <code>fetchGuide</code>. One reinstall for the whole epic.</td></tr>
+        <tr><td>N-553</td><td>Delivery Managers and Talent Partners can use the reporting reads, scoped to their own projects (TPs: their own rows).</td></tr>
+        <tr><td>N-547</td><td><code>search_guides</code>, <code>read_guide_section</code>: "how do I&hellip;" answered from the five user guides and <code>mcp/README.md</code>.</td></tr>
+        <tr><td>N-548</td><td><code>log_weekly_activity</code> (create and correct, up to 10 role-weeks per call); new <code>WeeklyActivity.Source</code> column, <code>claude</code> for a change made through Claude; Hires above 0 sends a bell reminder to record the placement.</td></tr>
+        <tr><td>N-549</td><td><code>update_role_stage</code> (up to 10 roles per call) through the shared <code>applyRoleStageChange()</code>; RoleHistory carries <code>Source = claude</code>.</td></tr>
+        <tr><td>N-550</td><td><code>report_facts</code> and <code>draft_report_narrative</code>: rewrites the text blocks of an existing saved report; never creates, exports or shares one.</td></tr>
+        <tr><td>N-555</td><td><code>hiring_plan</code> and the Hiring Plan section of <code>report_facts</code>.</td></tr>
+        <tr><td>N-551</td><td>Docs and distribution: <code>mcp/README.md</code> for Delivery Managers and Talent Partners, the install page <code>newton-for-claude.html</code>, the user guide section, and this close-out.</td></tr>
+      </table>
+      <p>Every change tool previews first and writes only on a second call with the confirm token (5 minutes, single use). Leadership has no change tools. Not in the epic (Wishlist): a usage log, an activity chaser, create-role-from-spec, Data Health fix-ups, checklist ticking.</p>
 
       <h3>How it fits together</h3>
       <p>The installed bundle (<code>manifest.json</code> + <code>bootstrap/</code>) holds mechanics only: stdio, sign-in, the loader and shims, the gate and <code>newton_status</code>. It changes rarely. On start it fetches <code>js/config.js</code>, then the scripts listed in <code>CONFIG.MCP.scripts</code> (ending with <code>mcp/newton-tools.js</code> then <code>mcp/newton-guides.js</code>, which pushes onto <code>MCP_TOOLS</code>) from <code>CONFIG.MCP.scriptBase</code>, so tools and calculations deploy together and are tested together. The deploy job rebuilds the bundle on every deploy at <code>/newton/mcp/newton-for-claude.mcpb</code>.</p>
@@ -1721,6 +1761,19 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">Newton for Claude for Delivery Managers and Talent Partners: install page and guide (N-551)</div>
+        <ul>
+          <li>New install page <code>newton-for-claude.html</code> in the module switcher for Admin, Leadership, Delivery Managers and Talent Partners: the download button and the full install guide. The Command Centre page stays and shows the same guide.</li>
+          <li><code>mcp/README.md</code> rewritten for Delivery Managers and Talent Partners: what Claude can do (including the Hiring Plan), how a change is previewed and confirmed, what it can't do, what each role sees, and the new error messages. Live text only: no reinstall.</li>
+          <li>The Reporting user guide has a Newton for Claude section; Weekly Activity points to it.</li>
+          <li>Tests: the new page's access matches <code>CONFIG.MCP.allowedRoles</code>, every tool is named in the README, and its limits, expiry and quoted messages match the code.</li>
+          <li>Epic close-out for N-544: epic note added under Newton for Claude. The changelog already holds only October and November 2026, so nothing was trimmed.</li>
+          <li><strong>Result:</strong> 1133 of 1135 tests pass (2 skipped).</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>

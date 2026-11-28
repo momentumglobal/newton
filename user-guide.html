@@ -43,6 +43,7 @@
       <li><a href="#hiring-plan">Hiring Plan (CoE)</a></li>
       <li><a href="#report-library">Report Library</a></li>
       <li><a href="#briefing-packs">Briefing Packs</a></li>
+      <li><a href="#newton-for-claude">Newton for Claude</a></li>
       <li><a href="#admin">Config Panel</a></li>
       <li><a href="#goals-actions">Goals &amp; Actions (Command Centre)</a></li>
       <li><div class="nav-section-label">AI Agents</div></li>
@@ -310,6 +311,7 @@
       <p>Use <strong>+ Add Activity</strong> to log a week's numbers for a single role. Select the role, enter the week ending date, and fill in the activity counts. This data feeds directly into the dashboard pipeline panels. The Project dropdown on this form lists Active projects only.</p>
       <h3>Bulk logging a whole week</h3>
       <p>Use <strong>⚡ Bulk log week</strong> to log every role you can see in one grid, one save, instead of opening the single-role form repeatedly. Pick a week-ending date and the grid loads a row per role, grouped by project; any rows already logged for that week are pre-filled so this is also how you correct a week you've already entered. Only the rows you actually change are saved — untouched rows are left alone. Each row saves against the Talent Partner assigned to that role; a role with no Talent Partner assigned shows as disabled. If one row fails to save, the rest still go through — the failed row stays open and marked so you can retry it.</p>
+      <p>Admin, Delivery Managers and Talent Partners with Newton for Claude installed can also log or correct a week by asking Claude. It previews the change and saves only after you confirm. See <a href="#newton-for-claude">Newton for Claude</a>.</p>
     </div>
     <div class="guide-section" id="placements">
       <h2>Placements</h2>
@@ -465,6 +467,28 @@
       <h3>How pages come out</h3>
       <p>Short sections share a page, each in its own bordered tile. A section that will not fit in the space left starts on the next page rather than being split across two. A section longer than a whole page will split — if you would rather control where the break falls, divide it into two sections.</p>
       <div class="tip">If the cover and closing pages come out without the swirl graphic, check that <strong>Background graphics</strong> is ticked in the print dialog, then export once more.</div>
+    </div>
+    <div class="guide-section" id="newton-for-claude">
+      <h2>Newton for Claude</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>Newton for Claude is an add-on for <strong>Claude Desktop</strong> that lets you ask Claude about Newton, and have it log weekly activity, move role stages and draft report narrative for you. Claude uses Newton&rsquo;s own data and rules, so the answers match what you see here. It works on <strong>Windows with Claude Desktop only</strong>, not on a phone, a Mac or in a browser.</p>
+      <h3>Getting it</h3>
+      <p>Open <a href="newton-for-claude.html">Newton for Claude</a> from the module menu (top of the sidebar). The page has the download button and the full install and sign-in guide, which also covers updating, signing in again and what to do if something goes wrong.</p>
+      <h3>What you can ask</h3>
+      <p><strong>How Newton works:</strong> &ldquo;How do I add a placement?&rdquo; Claude answers from the user guides, including this one.</p>
+      <p><strong>Your projects and roles:</strong> projects, roles, pipeline, placements, weekly activity and time to fill. You see what Newton shows you: Delivery Managers their projects, Talent Partners their projects with their own activity and placements. Admin and Leadership also get company-wide questions such as scorecards, the bench, utilisation and business goals.</p>
+      <p><strong>Hiring Plan:</strong> for a CoE project, Claude compares the plan with what has happened: planned and actual role opens by month, planned and actual hires (a hire counts when the offer is accepted), and each plan row with how many weeks ahead or behind it is. Everyone on the project sees the whole plan. A plan row&rsquo;s title is free text, so keep names out of it.</p>
+      <p><strong>Report narrative:</strong> ask Claude to draft the text of a saved report from the Report Library. It rewrites the text blocks of a report that already exists, using only counts and dates (no candidate names or money). It never creates, exports or shares a report, so read and edit the text yourself before it goes anywhere.</p>
+      <h3>Changing things</h3>
+      <p>Admin, Delivery Managers and Talent Partners can ask Claude to <strong>log or correct weekly activity</strong> (up to 10 role-weeks at a time) and to <strong>move roles between stages</strong> (up to 10 at a time, Backlog to Offered). Claude always shows a <strong>preview</strong> first and saves nothing until you say yes. Previews last 5 minutes. Claude can only change what you could change in Newton yourself, and every change is marked <em>via Claude</em> in the weekly activity row and the role history.</p>
+      <p>If you log hires above 0, the week is saved and Newton adds a reminder to record the placement. Claude never records placements: open the reminder and add the placement here.</p>
+      <h3>What it can&rsquo;t do</h3>
+      <p>It can&rsquo;t pause, close, cancel or reopen a role, change headcount, or record placements. It never sees candidate names, notes, salaries or any money. Leadership accounts are read-only.</p>
     </div>
     <div class="guide-section" id="admin">
       <h2>Config Panel</h2>

@@ -1449,6 +1449,8 @@ const CONFIG = {
     // the whole module, all models.
     { key: 'sales',     name: 'Sales',            icon: 'trending-up', desc: 'LCI Modeling, Sales Pipeline & Revenue Tracking', homeOrder: 3,  href: 'sales.html',            live: true, roles: ['admin','leadership','sales','delivery_manager'] },
     { key: 'command',   name: 'Command Centre',   icon: 'monitor',      href: 'command-centre.html',   live: true, roles: ['admin','leadership'] },
+    // N-551 (AMCP-7): Newton for Claude install page for every role that can use the tools. Dropdown only: no desc / homeOrder, so no home tile; not in mobile-app.js's MOBILE_MODULES (Windows desktop only).
+    { key: 'claude',    name: 'Newton for Claude', icon: 'download',     href: 'newton-for-claude.html', live: true, roles: ['admin','leadership','delivery_manager','talent_partner'] },
     // N-451 (MM-1): My Momentum — the personal area. Listed in the dropdown for every role, no home-grid tile (no desc / homeOrder).
     { key: 'myMomentum', name: 'My Momentum',      icon: 'user-check',  href: 'my-momentum.html',      live: true, roles: ['admin','leadership','people_ops','sales','delivery_manager','talent_partner','staff'] },
   ],
@@ -1683,6 +1685,8 @@ const CONFIG = {
     { key: 'goals', label: 'Goals & Actions', module: 'command', href: 'command-centre.html#goals', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // N-401 — install guide + download for Newton for Claude (cc-claude.js).
     { key: 'claudeMcp', label: 'Newton for Claude', module: 'command', href: 'command-centre.html#claudeMcp', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
+    // N-551 — the same install guide for every role that can use the tools (claude-router.js); Admin and Leadership see it twice by design.
+    { key: 'claudeInstall', label: 'Newton for Claude', module: 'claude', href: 'newton-for-claude.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     // mr-router.js — Market Analytics (2) — added 18 Aug 2026, folded into
     // N-144 after Chris asked to expand scope; fits the same page/role
     // shape as the four router files above (mrCanAccess(page, role)),

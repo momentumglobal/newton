@@ -1,6 +1,7 @@
-// js/cc-claude.js - Command Centre "Newton for Claude" page (N-401).
-// Shows the leadership install guide and a download button for the Newton for
-// Claude bundle. The guide is NOT copied here: it is fetched from mcp/README.md
+// js/cc-claude.js - "Newton for Claude" install page renderer (N-401; shared since N-551).
+// Loads on command-centre.html (Admin / Leadership) and newton-for-claude.html (every
+// role that can use the tools). Shows the install guide and a download button for the
+// Newton for Claude bundle. The guide is NOT copied here: it is fetched from mcp/README.md
 // on every visit and rendered by mdGuideToHtml() (utils.js), so the page and the
 // file cannot drift. The .mcpb is built by .github/workflows/static.yml on each
 // deploy and is not in the repo, so the button is a plain link. A same-origin
@@ -16,7 +17,7 @@ async function renderCCClaudePage(container) {
     </div>
     <div class="cc-guide-bar">
       <a class="btn-primary cc-guide-download" href="${CC_CLAUDE_DOWNLOAD_PATH}" download>Download Newton for Claude</a>
-      <span class="cc-guide-note">Windows and Claude Desktop only. Leadership and Admin only. Questions: ask Chris.</span>
+      <span class="cc-guide-note">Windows and Claude Desktop only. For Admin, Leadership, Delivery Managers and Talent Partners. Questions: ask Chris.</span>
     </div>
     <div class="cc-guide" id="cc-guide" aria-live="polite">${skeletonPanel(4)}</div>`;
   await ccClaudeLoadGuide();

@@ -688,6 +688,9 @@ ASSERTIONS.push(
       goals: ['admin', 'leadership'],
       claudeMcp: ['admin', 'leadership'],
     },
+    claude: {   // N-551: the install page for every role that can use the tools
+      claudeInstall: ['admin', 'delivery_manager', 'leadership', 'talent_partner'],
+    },
   };
   const LANDING = {
     people: {
@@ -719,6 +722,7 @@ ASSERTIONS.push(
         people:    matrix(load('people-router.js', 'PEOPLE_PAGES')),
         sales:     matrix(load('sales-router.js', 'SALES_PAGES')),
         command:   matrix(_ccPagesByKey(load('cc-router.js', 'CC_PAGES'))),
+        claude:    matrix(_ccPagesByKey(load('claude-router.js', 'CLAUDE_PAGES'))),   // N-551
       };
       Object.keys(EXPECTED).forEach(mod => {
         Object.keys(EXPECTED[mod]).forEach(k => EXPECTED[mod][k].sort());
@@ -727,6 +731,11 @@ ASSERTIONS.push(
       const ids = Object.values(CONFIG.ROLE_IDS);
       const cc = load('cc-router.js', 'ccCanAccess');
       _assertEqual(ids.filter(r => cc(r)).sort(), ['admin', 'leadership'], 'ccCanAccess');
+      const cl = load('claude-router.js', 'claudeCanAccess');   // N-551: the same four roles as CONFIG.MCP.allowedRoles and the OS_MODULES entry
+      _assertEqual(ids.filter(r => cl(r)).sort(), ['admin', 'delivery_manager', 'leadership', 'talent_partner'], 'claudeCanAccess');
+      _assertEqual(ids.filter(r => cl(r)).sort(), CONFIG.MCP.allowedRoles.slice().sort(), 'claudeCanAccess = CONFIG.MCP.allowedRoles');
+      _assertEqual(CONFIG.OS_MODULES.find(m => m.key === 'claude').roles.slice().sort(), ids.filter(r => cl(r)).sort(), 'OS_MODULES claude roles = router roles');
+      _assertEqual(CONFIG.OS_MODULES.find(m => m.key === 'claude').homeOrder, undefined, 'no home tile for the install page');
       ids.forEach(r => {
         _assertEqual(load('people-router.js', 'getPeopleLandingPage')(r), LANDING.people[r], 'people landing for ' + r);
         _assertEqual(load('sales-router.js', 'getSalesLandingPage')(r), LANDING.sales[r], 'sales landing for ' + r);
@@ -746,6 +755,7 @@ ASSERTIONS.push(
         people:    load('people-router.js', 'PEOPLE_PAGES'),
         sales:     load('sales-router.js', 'SALES_PAGES'),
         command:   _ccPagesByKey(load('cc-router.js', 'CC_PAGES')),
+        claude:    _ccPagesByKey(load('claude-router.js', 'CLAUDE_PAGES')),   // N-551
       };
       Object.keys(byModule).forEach(mod => {
         const bar = CONFIG.COMMAND_BAR_PAGES.filter(p => p.module === mod);
